@@ -59,3 +59,5 @@ func Genesis() *Block {
 func InitBlockChain() *BlockChain {
 	return &BlockChain{[]*Block{Genesis()}} //block zıncırını baslatıyoruz ve ılk blogu genesis fonksıyonu ıle olusturup ıcerısıne atıyoruz ılk blogumuz olustu artık
 }
+
+//part-1
