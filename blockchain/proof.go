@@ -23,23 +23,23 @@ import (
 // Gereksinimler:
 // ilk birkaç bayt 0 içermelidir  (bu zorluk derecesıdır)
 
-const Difficulty = 20
+const Difficulty = 18
 
-type ProofWork struct {
+type ProofOfWork struct {
 	Block  *Block
 	Target *big.Int //blogun hasının bu degerden kucuk olması gerekir
 }
 
-func NewProof(b *Block) *ProofWork {
+func NewProof(b *Block) *ProofOfWork {
 	target := big.NewInt(1)                  //	buyuk bır ınt degerı olusturduk ve 1 degerı ıel baslattık
 	target.Lsh(target, uint(256-Difficulty)) //LSH sol a kaydırma yapar target degerını uint(256-Difficulty) bu kadar sola kaydırır
-	pow := &ProofWork{b, target}             //iş kanıtı oluşturuldu b blogu ıcın bu target olmalıdır
+	pow := &ProofOfWork{b, target}           //iş kanıtı oluşturuldu b blogu ıcın bu target olmalıdır
 	return pow
 }
 
 // InitData, Proof of Work için gerekli olan verileri hazırlar ve birleştirir.
 // Hazırlanan veriler bloğun önceki hash'i, verisi, nonce değeri ve zorluk seviyesini içerir.
-func (pow *ProofWork) InitData(nonce int) []byte {
+func (pow *ProofOfWork) InitData(nonce int) []byte {
 	// Verileri birleştirmek için bytes.Join kullanılır.
 	data := bytes.Join(
 		[][]byte{
@@ -66,7 +66,7 @@ func ToHex(num int64) []byte {
 	return buf.Bytes() // Byte dizisi olarak buf içeriği döndürülür.
 }
 
-func (pow *ProofWork) Run() (int, []byte) {
+func (pow *ProofOfWork) Run() (int, []byte) {
 	var intHash big.Int //buyuk bır ınt olusturulur
 	var hash [32]byte   //hashlenmıs sıfreyı tutucaz burada
 
@@ -87,9 +87,9 @@ func (pow *ProofWork) Run() (int, []byte) {
 	return nonce, hash[:] //nonce ve hash deerlerını gerıye dondur
 }
 
-func (pow *ProofWork) Validate() bool {
+func (pow *ProofOfWork) Validate() bool {
 	var intHash big.Int                   //buyuk bır ınt tanımlanır
-	data := pow.InitData(pow.Block.nonce) //blogun noncenı vererek data olusturulur
+	data := pow.InitData(pow.Block.Nonce) //blogun noncenı vererek data olusturulur
 
 	hash := sha256.Sum256(data) //olusturulan datayı haslerız
 	intHash.SetBytes(hash[:])   //heshlenmıs datayı int turune donustururu
