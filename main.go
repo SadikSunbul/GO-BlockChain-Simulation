@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"strconv"
 )
 
 func main() {
@@ -46,14 +45,15 @@ func (cli *CommandLine) printChain() {
 	chain := blockchain.ContinueBlockChain("") // blockchain adında bir BlockChain nesnesi
 	defer chain.Database.Close()               // blok zincirini kapat
 	iter := chain.Iterator()                   // blok zinciri iteratorunu olustur
-
+	fmt.Println()
 	for { // blok zinciri sonuna kadar döngü
 		block := iter.Next() // Sıradaki bloğu al
 
-		fmt.Printf("Prev. hash: %x\n", block.PrevHash)              // Blok zincirinden o bloğun önceki hash degerini yazdır
-		fmt.Printf("Hash: %x\n", block.Hash)                        // Blok zincirinden o bloğun hash degerini yazdır
-		pow := blockchain.NewProof(block)                           // Blok zincirinden o bloğun proof of work degerini al
-		fmt.Printf("PoW: %s\n", strconv.FormatBool(pow.Validate())) // Blok zincirinden o bloğun proof of work degerini yazdır
+		fmt.Printf(" %-10s : %x\n", "Prev. hash", block.PrevHash) // Blok zincirinden o bloğun önceki hash değerini yazdır
+		fmt.Printf(" %-10s : %x\n", "Hash", block.Hash)           // Blok zincirinden o bloğun hash değerini yazdır
+
+		pow := blockchain.NewProof(block)
+		fmt.Printf(" %-10s : %v\n", "PoW", pow.Validate()) // Blok zincirinden o bloğun proof of work değerini yazdır
 		fmt.Println()
 
 		if len(block.PrevHash) == 0 {
