@@ -43,10 +43,10 @@ func (pow *ProofOfWork) InitData(nonce int) []byte {
 	// Verileri birleştirmek için bytes.Join kullanılır.
 	data := bytes.Join(
 		[][]byte{
-			pow.Block.PrevHash,       // Bloğun önceki hash'i
-			pow.Block.Data,           // Bloğun verisi
-			ToHex(int64(nonce)),      // Nonce değeri (int64 türünde hexadecimal'e dönüştürülür)
-			ToHex(int64(Difficulty)), // Zorluk seviyesi (int64 türünde hexadecimal'e dönüştürülür)
+			pow.Block.PrevHash,           // Bloğun önceki hash'i
+			pow.Block.HashTransactions(), // Bloğun verisi
+			ToHex(int64(nonce)),          // Nonce değeri (int64 türünde hexadecimal'e dönüştürülür)
+			ToHex(int64(Difficulty)),     // Zorluk seviyesi (int64 türünde hexadecimal'e dönüştürülür)
 		},
 		[]byte{}, // Ayraç olarak kullanılacak boş bir byte slice'ı
 	)
@@ -75,7 +75,7 @@ func (pow *ProofOfWork) Run() (int, []byte) {
 		data := pow.InitData(nonce) //nonce degerı ıle datayı olusturuyoruz
 		hash = sha256.Sum256(data)  //datayı sıfrelıuoz
 		fmt.Printf("\r%x", hash)    //hası ekrana bastırıyoruz
-		intHash.SetBytes(hash[:])   //hası buyuk ınte donduruyoruz ıyas yapabılmek ıcın
+		intHash.SetBytes(hash[:])   //hası buyuk ınte donduruyoruz kıyas yapabılmek ıcın
 
 		if intHash.Cmp(pow.Target) == -1 { //eger targeten kucuk ıse dogru bulundu has cıkabılrısın
 			break
