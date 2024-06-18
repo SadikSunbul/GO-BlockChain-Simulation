@@ -23,11 +23,12 @@ type CommandLine struct {
 
 // PrintUsage fonksiyonu, komut satırında kullanıcıya kullanım talimatlarını gösterir.
 func (cli *CommandLine) printUsage() {
-	fmt.Println("Usage:")
-	fmt.Println(" getbalance -address ADDRESS - bir adres için bakiyeyi almak")
-	fmt.Println(" createblockchain -address ADDRESS bir blok zinciri oluşturur ve adrese oluşum ödülünü gönderir")
-	fmt.Println(" printchain - Prints zincirdeki bloklar")
-	fmt.Println(" send -from FROM -to TO -amount AMOUNT - Para miktarını gönder")
+	fmt.Printf("Usage:\n")
+	fmt.Printf(" %-40s : %s\n", "getbalance -address ADDRESS", "Belirtilen adrese ait bakiyeyi görüntüler")
+	fmt.Printf(" %-40s : %s\n", "createblockchain -address ADDRESS", "Yeni bir blok zinciri oluşturur ve belirtilen adrese oluşum ödülünü gönderir")
+	fmt.Printf(" %-40s : %s\n", "printchain", "Blok zincirindeki tüm blokları yazdırır")
+	fmt.Printf(" %-40s : %s\n", "send -from FROM -to TO -amount AMOUNT", "Belirtilen miktarı belirtilen adresten diğer bir adrese gönderir")
+
 }
 
 // validateArgs fonksiyonu, komut satırı argümanlarını doğrular.
