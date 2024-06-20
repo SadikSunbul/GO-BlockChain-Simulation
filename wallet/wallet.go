@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -10,8 +11,8 @@ import (
 )
 
 const (
-	chechksumLength = 4
-	version         = byte(0x00) // 0 ın 16 lık gosterımıdır
+	checksumLength = 4
+	version        = byte(0x00) // 0 ın 16 lık gosterımıdır
 )
 
 type Wallet struct {
@@ -54,7 +55,7 @@ func PublicKeyHash(pubKey []byte) []byte {
 func Checksum(payload []byte) []byte {
 	firstHash := sha256.Sum256(payload)       // payload hash kodu olusturulur
 	secondHash := sha256.Sum256(firstHash[:]) // firstHash hash kodu olusturulur
-	return secondHash[:chechksumLength]       // checksum kodu olusturulur
+	return secondHash[:checksumLength]        // checksum kodu olusturulur
 }
 
 // Address fonksiyonu, bir adres olusturur
@@ -66,4 +67,31 @@ func (w Wallet) Address() []byte {
 	address := Base58Encode(fullHash)                    // adres olusturulur
 
 	return address
+}
+
+/*
+
+    Address		 	: 14LErwM2aHhdsDym6PKyutyG9ZSm51UHXc
+	FullHash	 	: 002348bd9e7a51b7aba9766a7c62d502079020802bc6c767
+	[version]   	: 00
+	[pubKeyHash] 	: 2348bd9e7a51b7aba9766a7c62d50207902080
+	[checksum]		: 2bc6c767
+
+	address alınır ve addresi base58 ıle decode edılır ve pubKey elde edilir
+
+	fullhasın ilk karakterını sokup alın bu surum karakterıdır burada versıon 00 oldu
+
+	ardından pubkeyhash kısmınıda cıkarın ve elımızde checkSum kalır 1bc6c767
+
+*/
+
+// ValidateAddress fonksiyonu, bir adresin gecerli olup olmadıgını kontrol eder
+func ValidateAddress(address string) bool {
+	pubKeyHash := Base58Decode([]byte(address))                        // adresi byte dizisine dönüştürülür
+	actualChecksum := pubKeyHash[len(pubKeyHash)-checksumLength:]      // checksum kodu alınır
+	version := pubKeyHash[0]                                           // version kodu alınır
+	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-checksumLength]        // version ve checksum kodu silinir
+	targetChecksum := Checksum(append([]byte{version}, pubKeyHash...)) // checksum kodu olusturulur
+
+	return bytes.Compare(actualChecksum, targetChecksum) == 0 // checksum kodu karsılastırılır
 }

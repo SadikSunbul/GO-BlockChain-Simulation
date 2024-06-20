@@ -14,6 +14,5 @@ func main() {
 	w := wallet.MakeWallet()
 	w.Address()
 
-	//cli := cli.CommandLine{}
-	//cli.CreateWallet()
+	//fmt.Print(wallet.ValidateAddress("1Dg9RoRcMYtcyj3dhXooFyjJubERMXRRwC"))
 }
