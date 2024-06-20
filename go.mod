@@ -1,6 +1,6 @@
 module github.com/SadikSunbul/GO-BlockChain-Simulation
 
-go 1.22.4
+go 1.18
 
 require (
 	github.com/dgraph-io/badger v1.6.2
