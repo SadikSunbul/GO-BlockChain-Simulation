@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/SadikSunbul/GO-BlockChain-Simulation/blockchain"
+	"github.com/SadikSunbul/GO-BlockChain-Simulation/wallet"
 	"log"
 	"os"
 	"runtime"
@@ -21,7 +22,8 @@ func (cli *CommandLine) printUsage() {
 	fmt.Printf(" %-40s : %s\n", "createblockchain -address ADDRESS", "Yeni bir blok zinciri oluşturur ve belirtilen adrese oluşum ödülünü gönderir")
 	fmt.Printf(" %-40s : %s\n", "printchain", "Blok zincirindeki tüm blokları yazdırır")
 	fmt.Printf(" %-40s : %s\n", "send -from FROM -to TO -amount AMOUNT", "Belirtilen miktarı belirtilen adresten diğer bir adrese gönderir")
-
+	fmt.Printf(" %-40s : %s\n", "createwallet", "-Yeni bir cüzdan oluşturur")
+	fmt.Printf(" %-40s : %s\n", "listaddresses", "Cüzdan dosyamızdaki adresleri listeleyin\n")
 }
 
 // validateArgs fonksiyonu, komut satırı argümanlarını doğrular.
@@ -85,6 +87,21 @@ func (cli *CommandLine) send(from, to string, amount int) { // para göndermek
 	fmt.Println("Success!")
 }
 
+func (cli *CommandLine) listAddresses() {
+	wallets, _ := wallet.CreateWallets()
+	addresses := wallets.GetAllAddress()
+	for _, address := range addresses {
+		fmt.Println(address)
+	}
+}
+
+func (cli *CommandLine) CreateWallet() {
+	wallets, _ := wallet.CreateWallets()
+	address := wallets.AddWallet()
+	wallets.SaveFile()
+	fmt.Printf("New address is : %s\n", address)
+}
+
 func (cli *CommandLine) Run() { // komut satırı işlemleri
 	cli.validateArgs() // komut satırı argümanlarını dogrular
 
@@ -92,6 +109,8 @@ func (cli *CommandLine) Run() { // komut satırı işlemleri
 	createBlockchainCmd := flag.NewFlagSet("createblockchain", flag.ExitOnError) // createblockchain komutunu tanımla
 	sendCmd := flag.NewFlagSet("send", flag.ExitOnError)                         // send komutunu tanımla
 	printChainCmd := flag.NewFlagSet("printchain", flag.ExitOnError)             // printchain komutunu tanımla
+	createWalletCmd := flag.NewFlagSet("createwallet", flag.ExitOnError)
+	listAddressesCmd := flag.NewFlagSet("listaddresses", flag.ExitOnError)
 
 	getBalanceAddress := getBalanceCmd.String("address", "", "Bakiye almanın adresi")                                 // getbalance komutundaki adres bilgisini tanımla
 	createBlockchainAddress := createBlockchainCmd.String("address", "", "Genesis blok ödülünün gönderileceği adres") // createblockchain komutundaki adres bilgisini tanımla
@@ -112,6 +131,16 @@ func (cli *CommandLine) Run() { // komut satırı işlemleri
 		}
 	case "printchain":
 		err := printChainCmd.Parse(os.Args[2:]) // printchain komutunu çalıştır
+		if err != nil {
+			log.Panic(err)
+		}
+	case "listaddresses":
+		err := listAddressesCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
+	case "createwallet":
+		err := createWalletCmd.Parse(os.Args[2:])
 		if err != nil {
 			log.Panic(err)
 		}
@@ -152,5 +181,12 @@ func (cli *CommandLine) Run() { // komut satırı işlemleri
 		}
 
 		cli.send(*sendFrom, *sendTo, *sendAmount) // send komutunu çalıştır
+	}
+
+	if createWalletCmd.Parsed() {
+		cli.CreateWallet()
+	}
+	if listAddressesCmd.Parsed() {
+		cli.listAddresses()
 	}
 }
