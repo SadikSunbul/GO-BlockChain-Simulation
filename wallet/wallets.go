@@ -15,69 +15,74 @@ type Wallets struct {
 	Wallets map[string]*Wallet
 }
 
+// CreateWallets fonksiyonu, bir Wallets nesnesi olusturur
 func CreateWallets() (*Wallets, error) {
-	wallets := Wallets{}
-	wallets.Wallets = make(map[string]*Wallet)
+	wallets := Wallets{}                       // wallet nesnesi olusturulur
+	wallets.Wallets = make(map[string]*Wallet) // wallet nesnesi olusturulur
 
-	err := wallets.LoadFile()
+	err := wallets.LoadFile() // wallets dosyası okunur
 
-	return &wallets, err
+	return &wallets, err // wallets nesnesi döndürülür
 }
 
+// GetWallet fonksiyonu, bir Wallet nesnesini döndürür
 func (ws *Wallets) GetWallet(address string) Wallet {
-	return *ws.Wallets[address]
+	return *ws.Wallets[address] // wallet nesnesi döndürülür
 }
 
+// AddWallet fonksiyonu, bir Wallet nesnesi ekler
 func (ws *Wallets) AddWallet() string {
-	wallet := MakeWallet()
-	address := fmt.Sprintf("%s", wallet.Address())
-	ws.Wallets[address] = wallet
-	return address
+	wallet := MakeWallet()                         // wallet nesnesi olusturulur
+	address := fmt.Sprintf("%s", wallet.Address()) // wallet adresi stringe dönüştürülür
+	ws.Wallets[address] = wallet                   // wallet nesnesi eklenir
+	return address                                 // wallet adresi döndürülür
 }
 
+// GetAllAddress fonksiyonu, tüm wallet adreslerini döndürür
 func (ws *Wallets) GetAllAddress() []string {
-	var addresses []string
-	for address := range ws.Wallets {
-		addresses = append(addresses, address)
+	var addresses []string            // adreslerin listesi olusturulur
+	for address := range ws.Wallets { // tüm wallet adreslerini döndürür
+		addresses = append(addresses, address) // adreslerin listesi eklenir
 	}
-	return addresses
+	return addresses // adreslerin listesi döndürülür
 }
 
+// LoadFile fonksiyonu, dosya okunur
 func (ws *Wallets) LoadFile() error {
-	if _, err := os.Stat(walletFile); os.IsNotExist(err) { //dosya varmı
-		return err
+	if _, err := os.Stat(walletFile); os.IsNotExist(err) { // dosya yoksa
+		return err // hata döndürür
 	}
 
-	var wallets Wallets
+	var wallets Wallets // wallet nesnesi olusturulur
 
-	fileContent, err := os.ReadFile(walletFile)
+	fileContent, err := os.ReadFile(walletFile) // dosya okunur
 
 	if err != nil {
 		log.Panic(err)
-	}
-	gob.Register(elliptic.P256())
-	decoder := gob.NewDecoder(bytes.NewReader(fileContent))
-	err = decoder.Decode(&wallets)
+	} // hata döndürür
+	gob.Register(elliptic.P256())                           // elliptic nesnesi olusturulur
+	decoder := gob.NewDecoder(bytes.NewReader(fileContent)) // decoder nesnesi olusturulur
+	err = decoder.Decode(&wallets)                          // decoder ile dosya okunur
 
 	if err != nil {
-		fmt.Println("hataa decode de")
-		log.Panic(err)
+		log.Panic(err) // hata döndürür
 	}
-	ws.Wallets = wallets.Wallets
+	ws.Wallets = wallets.Wallets // wallet nesnesi olusturulur
 
-	return nil
+	return nil // hata yok
 }
 
+// SaveFile fonksiyonu, dosya kaydedilir
 func (ws *Wallets) SaveFile() {
 	var content bytes.Buffer
 
-	gob.Register(elliptic.P256())
-	encoder := gob.NewEncoder(&content)
-	err := encoder.Encode(ws)
+	gob.Register(elliptic.P256())       // elliptic nesnesi olusturulur
+	encoder := gob.NewEncoder(&content) // encoder nesnesi oluşturulur
+	err := encoder.Encode(ws)           // encoder ile dosya kaydedilir
 	if err != nil {
 		log.Panic(err)
 	}
-	err = os.WriteFile(walletFile, content.Bytes(), 0644)
+	err = os.WriteFile(walletFile, content.Bytes(), 0644) // dosya kaydedilir
 	if err != nil {
 		log.Panic(err)
 	}

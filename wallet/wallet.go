@@ -19,6 +19,7 @@ type Wallet struct {
 	PublickKey []byte
 }
 
+// NewKeyPair fonksiyonu, bir private ve public key olusturur
 func NewKeyPair() (ecdsa.PrivateKey, []byte) {
 	curve := elliptic.P256() //kullanıcagımız eliptik tipi burdakı sıfreler 256 byte olur
 
