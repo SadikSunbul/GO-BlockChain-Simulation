@@ -133,11 +133,11 @@ func (cli *CommandLine) Run() { // komut satırı işlemleri
 	createWalletCmd := flag.NewFlagSet("createwallet", flag.ExitOnError)
 	listAddressesCmd := flag.NewFlagSet("listaddresses", flag.ExitOnError)
 
-	getBalanceAddress := getBalanceCmd.String("\u001B[35maddress\u001B[0m", "", "\033[36mBakiye almanın adresi\033[0m")
-	createBlockchainAddress := createBlockchainCmd.String("\u001B[35maddress\u001B[0m", "", "\033[36mGenesis blok ödülünün gönderileceği adres\033[0m")
-	sendFrom := sendCmd.String("\u001B[35mfrom\u001B[0m", "", "\033[36mKaynak cüzdan adresi\033[0m")
-	sendTo := sendCmd.String("\u001B[35mto\u001B[0m", "", "\033[36mHedef cüzdan adresi\033[0m")
-	sendAmount := sendCmd.Int("\u001B[35mamount\u001B[0m", 0, "\033[36mGönderilecek tutar\033[0m")
+	getBalanceAddress := getBalanceCmd.String("address", "", "\033[36mBakiye almanın adresi\033[0m")
+	createBlockchainAddress := createBlockchainCmd.String("address[0m", "", "\033[36mGenesis blok ödülünün gönderileceği adres\033[0m")
+	sendFrom := sendCmd.String("from", "", "\033[36mKaynak cüzdan adresi\033[0m")
+	sendTo := sendCmd.String("to", "", "\033[36mHedef cüzdan adresi\033[0m")
+	sendAmount := sendCmd.Int("amount", 0, "\033[36mGönderilecek tutar\033[0m")
 	// send komutundaki tutarı tanımla
 
 	switch os.Args[1] { // komut satırı argümanın hangi komut oldugunu bulur
