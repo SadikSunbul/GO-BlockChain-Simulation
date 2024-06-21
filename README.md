@@ -20,8 +20,8 @@ The project consists of the following components:
 Clone the project to your local machine:
 
 + ```bash
-    git clone https://github.com/SadikSunbul/GO-BlockChain-Simulation.git
-    cd GO-BlockChain-Simulation 
+   $ git clone https://github.com/SadikSunbul/GO-BlockChain-Simulation.git
+   $ cd GO-BlockChain-Simulation 
 ***
 
 ## Usage
@@ -32,7 +32,7 @@ To create a new blockchain:
 
     
 + ```bash 
-    go run main.go createblockchain -address <ADDRESS>
+   $ go run main.go createblockchain -address <ADDRESS>
 ***
 
 ### Checking Balance
@@ -40,7 +40,7 @@ To create a new blockchain:
 To check the balance for a specific address:
 
 + ```bash
-    go run main.go getbalance -address <ADDRESS>
+   $ go run main.go getbalance -address <ADDRESS>
 ***
 
 ### Sending Transactions
@@ -48,7 +48,7 @@ To check the balance for a specific address:
 To send a transaction on the blockchain:
 
 + ```bash
-    go run main.go send -from <FROM_ADDRESS> -to <TO_ADDRESS> -amount <AMOUNT>
+   $ go run main.go send -from <FROM_ADDRESS> -to <TO_ADDRESS> -amount <AMOUNT>
 ***
 
 ### Viewing the Blockchain
@@ -56,7 +56,7 @@ To send a transaction on the blockchain:
 To print all blocks in the blockchain:
 
 + ```bash
-    go run main.go printchain
+   $ go run main.go printchain
 ***
 
 ### Creating a New Wallet
@@ -64,15 +64,15 @@ To print all blocks in the blockchain:
 To create a new wallet:
 
 +  ```bash
-    go run main.go createwallet
+   $ go run main.go createwallet
 ***
 
-### Creating a New Wallet
+### List Wallets
 
-To create a new wallet:
+Lists the public keys of the wallets you created on your device:
 
 + ```bash
-    go run main.go createwallet
+    $ go run main.go listaddresses
 ***
 
 ## Contributing
