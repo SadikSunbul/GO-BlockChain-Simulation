@@ -21,6 +21,7 @@ type Transaction struct {
 	Outputs []TxOutput //bu transectıondakı outputlar
 }
 
+// CoinbaseTx fonksiyonu, bir coinbase transaction oluşturur.
 func CoinbaseTx(to, data string) *Transaction {
 	if data == "" { //data boş ise gir
 		data = fmt.Sprintf("Coins to %s", to) //paralar to da der
@@ -34,6 +35,7 @@ func CoinbaseTx(to, data string) *Transaction {
 	return &tx
 }
 
+// SetID fonksiyonu, Transectıon Id sını olusturur.
 func (tx *Transaction) SetID() { //Id olusturur transectıonun
 	var encoded bytes.Buffer
 	var hash [32]byte
@@ -48,40 +50,47 @@ func (tx *Transaction) SetID() { //Id olusturur transectıonun
 
 // NewTransaction, belirtilen bir adresten başka bir adrese belirtilen miktar token transferi yapacak yeni bir işlem oluşturur.
 func NewTransaction(from, to string, amount int, chain *BlockChain) *Transaction {
-	var inputs []TxInput
-	var outputs []TxOutput
+	var inputs []TxInput   // Bu işlemdeki girdiler (inputs)
+	var outputs []TxOutput // Bu işlemdeki çıktılar (outputs)
 
-	wallets, err := wallet.CreateWallets()
-	Handle(err)
-	w := wallets.GetWallet(from)
-	pubKeyHash := wallet.PublicKeyHash(w.PublicKey)
+	wallets, err := wallet.CreateWallets() // Cüzdanları oluşturan fonksiyon, cüzdan dosyasını okur
+	Handle(err)                            // Hata durumunda işlemi ele alır
+
+	w := wallets.GetWallet(from)                    // Gönderenin cüzdanını belirtilen adresten alır
+	pubKeyHash := wallet.PublicKeyHash(w.PublicKey) // Cüzdanın public key hash değerini hesaplar
+
+	// Belirtilen miktarda token transferi için harcanabilir çıktıları bulur
 	acc, validOutputs := chain.FindSpendableOutputs(pubKeyHash, amount)
 
-	if acc < amount {
-		log.Panic("Error: not enough funds")
+	if acc < amount { // Hesaptaki bakiye belirtilen miktarı karşılayamıyorsa
+		log.Panic("Error: not enough funds") // Hata mesajı verir ve işlemi sonlandırır
 	}
 
+	// Harcanabilir çıktıları işleyerek girdi (input) yapısını oluşturur
 	for txid, outs := range validOutputs {
-		txID, err := hex.DecodeString(txid)
-		Handle(err)
+		txID, err := hex.DecodeString(txid) // Hexadecimal formatındaki txid'yi byte dizisine dönüştürür
+		Handle(err)                         // Hata durumunda işlemi ele alır
 
 		for _, out := range outs {
-			input := TxInput{txID, out, nil, w.PublicKey}
+			input := TxInput{txID, out, nil, w.PublicKey} // Girdi (input) yapısını oluşturur
 			inputs = append(inputs, input)
 		}
 	}
 
+	// Belirtilen miktarda çıktı (output) oluşturur ve çıktı listesine ekler
 	outputs = append(outputs, *NewTXOutput(amount, to))
 
 	if acc > amount {
+		// Gönderenin kalan bakiyesi için ek bir çıktı oluşturur ve çıktı listesine ekler
 		outputs = append(outputs, *NewTXOutput(acc-amount, from))
 	}
 
+	// İşlem yapısını oluşturur
 	tx := Transaction{nil, inputs, outputs}
-	tx.ID = tx.Hash()
-	chain.SignTransaction(&tx, w.PrivateKey)
+	tx.ID = tx.Hash()                        // İşlemin hash değerini hesaplar
+	chain.SignTransaction(&tx, w.PrivateKey) // İşlemi imzalar
 
-	return &tx
+	return &tx // Oluşturulan işlem yapısını döndürür
 }
 
 /*
@@ -96,114 +105,137 @@ func (tx *Transaction) IsCoinbase() bool {
 	// Bu girişin işlem kimliği (ID) uzunluğu 0'a eşit olmalıdır ve çıkış (Out) -1 olmalıdır.
 }
 
-func (tx Transaction) Serilize() []byte {
-	var encoded bytes.Buffer
-	enc := gob.NewEncoder(&encoded)
+// Serialize fonksiyonu, bir Transaction yapısını serileştirir (encode eder) ve byte dizisi olarak döndürür.
+func (tx Transaction) Serialize() []byte {
+	var encoded bytes.Buffer        // Yeni bir bytes.Buffer oluşturulur
+	enc := gob.NewEncoder(&encoded) // gob (Go's binary serialization format) ile encode edici oluşturulur
 
-	err := enc.Encode(tx)
+	err := enc.Encode(tx) // Transaction yapısını encode eder
 	if err != nil {
-		log.Panic(err)
+		log.Panic(err) // Hata durumunda hata mesajı gösterir ve işlemi sonlandırır
 	}
-	return encoded.Bytes()
+	return encoded.Bytes() // Encode edilmiş veriyi byte dizisi olarak döndürür
 }
 
+// Hash fonksiyonu, bir Transaction yapısının hash değerini hesaplar ve byte dizisi olarak döndürür.
 func (tx *Transaction) Hash() []byte {
-	var hash [32]byte
-	txCopy := *tx
-	txCopy.ID = []byte{}
-	hash = sha256.Sum256(txCopy.Serilize())
-	return hash[:]
+	var hash [32]byte    // 32 byte'lık bir hash dizisi oluşturulur
+	txCopy := *tx        // Transaction yapısının bir kopyası oluşturulur
+	txCopy.ID = []byte{} // ID alanı temizlenir (boş byte dizisi atanır)
+
+	hash = sha256.Sum256(txCopy.Serialize()) // Transaction yapısının serialize edilmiş halinin SHA-256 hash'ini hesaplar
+
+	return hash[:] // Hesaplanan hash değerini byte dizisi olarak döndürür
 }
 
+// Sign fonksiyonu, bir Transaction yapısını imzalar.
+// İmzalamak için verilen private anahtar (privKey) kullanılır ve işlemi daha önce yapılmış olan işlemlerle (prevTXs) ilişkilendirir.
 func (tx *Transaction) Sign(privKey ecdsa.PrivateKey, prevTXs map[string]Transaction) {
-	if tx.IsCoinbase() {
-		return
+	if tx.IsCoinbase() { // Eğer işlem bir coinbase işlemi ise (ödül işlemi ise)
+		return // İşlem yapma, çünkü coinbase işlemleri imzalanmaz
 	}
 
 	for _, in := range tx.Inputs {
+		// İşlemdeki her girdi için önceki işlem kontrolü yapılır
 		if prevTXs[hex.EncodeToString(in.ID)].ID == nil {
-			log.Panic("ERROR: Previous transaction is not correct")
+			log.Panic("ERROR: Previous transaction is not correct") // Önceki işlem doğruluğu sağlanmazsa hata ver ve işlemi sonlandır
 		}
 	}
 
+	// İşlem yapısının bir kopyası oluşturulur ve gerekli alanlar temizlenir
 	txCopy := tx.TrimmedCopy()
 
+	// İşlemdeki her girdi için imzalama işlemi yapılır
 	for inId, in := range txCopy.Inputs {
-		prevTX := prevTXs[hex.EncodeToString(in.ID)]
-		txCopy.Inputs[inId].Signature = nil
-		txCopy.Inputs[inId].PubKey = prevTX.Outputs[in.Out].PublicKey
-		txCopy.ID = txCopy.Hash()
-		txCopy.Inputs[inId].PubKey = nil
+		prevTX := prevTXs[hex.EncodeToString(in.ID)]                  // Girdinin önceki işlem verisini alır
+		txCopy.Inputs[inId].Signature = nil                           // İmza alanı temizlenir
+		txCopy.Inputs[inId].PubKey = prevTX.Outputs[in.Out].PublicKey // Girdiye ait PublicKey ayarlanır
+		txCopy.ID = txCopy.Hash()                                     // İşlemin hash değeri hesaplanır
+		txCopy.Inputs[inId].PubKey = nil                              // PublicKey alanı temizlenir (güvenlik amacıyla)
 
-		r, s, err := ecdsa.Sign(rand.Reader, &privKey, txCopy.ID)
-		Handle(err)
-		signature := append(r.Bytes(), s.Bytes()...)
+		// İşlemi imzalar
+		r, s, err := ecdsa.Sign(rand.Reader, &privKey, txCopy.ID) // ECDSA algoritması kullanarak işlemi imzalar
+		Handle(err)                                               // Hata durumunda işlemi ele alır
+		signature := append(r.Bytes(), s.Bytes()...)              // İmza değerleri birleştirilir
 
-		tx.Inputs[inId].Signature = signature
-
+		tx.Inputs[inId].Signature = signature // İşlemdeki girdiye imzayı ekler
 	}
 }
 
+// Verify fonksiyonu, bir Transaction yapısının geçerliliğini doğrular.
+// Geçerlilik kontrolü için verilen önceki işlemler haritası (prevTXs) kullanılır.
 func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
-	if tx.IsCoinbase() {
-		return true
+	if tx.IsCoinbase() { // Eğer işlem bir coinbase işlemi ise
+		return true // Coinbase işlemleri doğrudur (her zaman geçerli)
 	}
 
+	// İşlemdeki her girdi için önceki işlem doğruluğu kontrol edilir
 	for _, in := range tx.Inputs {
 		if prevTXs[hex.EncodeToString(in.ID)].ID == nil {
-			log.Panic("Previous transaction not correct")
+			log.Panic("Previous transaction not correct") // Önceki işlem doğruluğu sağlanmazsa hata verir ve işlemi sonlandırır
 		}
 	}
 
+	// İşlem yapısının bir kopyası oluşturulur ve gerekli alanlar temizlenir
 	txCopy := tx.TrimmedCopy()
+
+	// ECDSA P256 eğrisi kullanılır
 	curve := elliptic.P256()
 
+	// Her girdi için imza doğrulaması yapılır
 	for inId, in := range tx.Inputs {
-		prevTx := prevTXs[hex.EncodeToString(in.ID)]
-		txCopy.Inputs[inId].Signature = nil
-		txCopy.Inputs[inId].PubKey = prevTx.Outputs[in.Out].PublicKey
-		txCopy.ID = txCopy.Hash()
-		txCopy.Inputs[inId].PubKey = nil
+		prevTx := prevTXs[hex.EncodeToString(in.ID)]                  // Girdinin önceki işlem verisini alır
+		txCopy.Inputs[inId].Signature = nil                           // İmza alanı temizlenir
+		txCopy.Inputs[inId].PubKey = prevTx.Outputs[in.Out].PublicKey // Girdiye ait PublicKey ayarlanır
+		txCopy.ID = txCopy.Hash()                                     // İşlemin hash değeri hesaplanır
+		txCopy.Inputs[inId].PubKey = nil                              // PublicKey alanı temizlenir (güvenlik amacıyla)
 
+		// İmza ve PublicKey'i parçalara ayırır
 		r := big.Int{}
 		s := big.Int{}
-
 		sigLen := len(in.Signature)
-		r.SetBytes(in.Signature[:(sigLen / 2)])
-		s.SetBytes(in.Signature[(sigLen / 2):])
+		r.SetBytes(in.Signature[:(sigLen / 2)]) // İmzanın ilk yarısı r değeri olarak ayarlanır
+		s.SetBytes(in.Signature[(sigLen / 2):]) // İmzanın ikinci yarısı s değeri olarak ayarlanır
 
 		x := big.Int{}
 		y := big.Int{}
 		keyLen := len(in.PubKey)
-		x.SetBytes(in.PubKey[:(keyLen / 2)])
-		y.SetBytes(in.PubKey[(keyLen / 2):])
+		x.SetBytes(in.PubKey[:(keyLen / 2)]) // PublicKey'in ilk yarısı x değeri olarak ayarlanır
+		y.SetBytes(in.PubKey[(keyLen / 2):]) // PublicKey'in ikinci yarısı y değeri olarak ayarlanır
 
-		rawPubKey := ecdsa.PublicKey{curve, &x, &y}
+		rawPubKey := ecdsa.PublicKey{curve, &x, &y} // Raw public key oluşturulur
+		// ECDSA algoritması kullanarak imza doğrulaması yapılır
 		if ecdsa.Verify(&rawPubKey, txCopy.ID, &r, &s) == false {
-			return false
+			return false // İmza doğrulanamazsa false döner
 		}
 	}
 
-	return true
+	return true // İşlem geçerli ise true döner
 }
 
+// TrimmedCopy fonksiyonu, Transaction yapısının bir kopyasını oluşturur ve girdileri ve çıktıları temizler.
+// Temizlenmiş kopya, işlemi imzalamak veya doğrulamak için kullanılırken orijinal Transaction yapısını değiştirmez.
 func (tx *Transaction) TrimmedCopy() Transaction {
-	var inputs []TxInput
-	var outputs []TxOutput
+	var inputs []TxInput   // Boş bir TxInput (girdi) dizisi oluşturulur
+	var outputs []TxOutput // Boş bir TxOutput (çıktı) dizisi oluşturulur
 
+	// Orijinal işlemin girdilerini temizlenmiş kopyaya ekler
 	for _, in := range tx.Inputs {
-		inputs = append(inputs, TxInput{in.ID, in.Out, nil, nil})
+		inputs = append(inputs, TxInput{in.ID, in.Out, nil, nil}) // Girdinin sadece ID ve Out değerlerini kopyaya ekler
 	}
 
+	// Orijinal işlemin çıktılarını temizlenmiş kopyaya ekler
 	for _, out := range tx.Outputs {
-		outputs = append(outputs, TxOutput{out.Value, out.PublicKey})
+		outputs = append(outputs, TxOutput{out.Value, out.PublicKey}) // Çıktının sadece Value ve PublicKey değerlerini kopyaya ekler
 	}
 
+	// Temizlenmiş kopya Transaction yapısını oluşturur
 	txCopy := Transaction{tx.ID, inputs, outputs}
 
-	return txCopy
+	return txCopy // Oluşturulan temizlenmiş kopyayı döndürür
 }
 
+// String fonksiyonu, Transaction yapısını stringe dönüştürür
 func (tx Transaction) String() string {
 	var lines []string
 	lines = append(lines, fmt.Sprintf("\033[35m ╔═══════════════════════════════════════════════════════════════════════════════════"))

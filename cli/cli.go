@@ -39,6 +39,7 @@ func (cli *CommandLine) validateArgs() {
 	}
 }
 
+// printChain fonksiyonu, blok zincirindeki tüm blokları yazdırır
 func (cli *CommandLine) printChain() {
 	chain := blockchain.ContinueBlockChain("") // blockchain adında bir BlockChain nesnesi
 	defer chain.Database.Close()               // blok zincirini kapat
@@ -65,62 +66,67 @@ func (cli *CommandLine) printChain() {
 	}
 }
 
+// createBlockChain fonksiyonu, belirtilen adresin blok zincirini oluşturur
 func (cli *CommandLine) createBlockChain(address string) { // blockchain oluşturur
-	if !wallet.ValidateAddress(address) {
-		log.Panic("Address is not Valid")
+	if !wallet.ValidateAddress(address) { // adresin dogrulugunu kontrol eder
+		log.Panic("\033[31mAddress is not Valid\033[0m")
 	}
-	chain := blockchain.InitBlockChain(address)
-	chain.Database.Close()
-	fmt.Println("Finished!")
+	chain := blockchain.InitBlockChain(address) // adresin blok zincirini oluşturur
+	chain.Database.Close()                      // blok zincirini kapat
+	fmt.Println("\u001B[32mFinished!\u001B[0m") // sonlandırılır
 }
 
+// getBalance fonksiyonu, belirtilen adresin bakiyesini bulur
 func (cli *CommandLine) getBalance(address string) {
-	if !wallet.ValidateAddress(address) {
-		log.Panic("Address is not Valid")
+	if !wallet.ValidateAddress(address) { // adresin dogrulugunu kontrol eder
+		log.Panic("\033[31mAddress is not Valid\033[0m")
 	}
-	chain := blockchain.ContinueBlockChain(address)
-	defer chain.Database.Close()
+	chain := blockchain.ContinueBlockChain(address) // adresin blok zincirini okur
+	defer chain.Database.Close()                    // blok zincirini kapat
 
 	balance := 0
-	pubKeyHash := wallet.Base58Decode([]byte(address))
-	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]
-	UTXOs := chain.FindUTXO(pubKeyHash)
+	pubKeyHash := wallet.Base58Decode([]byte(address)) // adresin base58 kodunu okur
+	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]     // adresin ilk 4 karakterini kaldırır
+	UTXOs := chain.FindUTXO(pubKeyHash)                // adresin bakiyesini bulur
 
-	for _, out := range UTXOs {
-		balance += out.Value
+	for _, out := range UTXOs { // bakiye döngüsü
+		balance += out.Value // bakiyeyi arttırır
 	}
 
-	fmt.Printf("Balance of %s: %d\n", address, balance)
+	fmt.Printf("\033[32mBalance of %s: %d\u001B[0m\n", address, balance) // bakiye yazdırılır
 }
 
+// send fonksiyonu, belirtilen miktarı belirtilen adresten diğer bir adrese gönderir.
 func (cli *CommandLine) send(from, to string, amount int) {
-	if !wallet.ValidateAddress(to) {
-		log.Panic("Address is not Valid")
+	if !wallet.ValidateAddress(to) { // gonderilecek adresin dogrulugunu kontrol eder
+		log.Panic("\033[31mAddress is not Valid\033[0m") // dogrulama hatasını verir
 	}
-	if !wallet.ValidateAddress(from) {
-		log.Panic("Address is not Valid")
+	if !wallet.ValidateAddress(from) { // gonderen adresin dogrulugunu kontrol eder
+		log.Panic("\033[31mAddress is not Valid\033[0m")
 	}
-	chain := blockchain.ContinueBlockChain(from)
-	defer chain.Database.Close()
+	chain := blockchain.ContinueBlockChain(from) // gonderenin blok zincirini okur
+	defer chain.Database.Close()                 // blok zincirini kapat
 
-	tx := blockchain.NewTransaction(from, to, amount, chain)
-	chain.AddBlock([]*blockchain.Transaction{tx})
-	fmt.Println("Success!")
+	tx := blockchain.NewTransaction(from, to, amount, chain) // yeni bir işlem oluşturur
+	chain.AddBlock([]*blockchain.Transaction{tx})            // blok zincirine ekler
+	fmt.Println("\u001B[32mSuccess!\u001B[0m")               // basarılı mesajı verir
 }
 
+// listAddresses fonksiyonu, cüzdan adreslerini listeler.
 func (cli *CommandLine) listAddresses() {
-	wallets, _ := wallet.CreateWallets()
-	addresses := wallets.GetAllAddress()
+	wallets, _ := wallet.CreateWallets() // cüzdan dosyasını okur
+	addresses := wallets.GetAllAddress() // cüzdan adreslerini alır
 	for _, address := range addresses {
-		fmt.Println(address)
+		fmt.Printf("\033[36m	%s\u001B[0m\n", address)
 	}
 }
 
+// CreateWallet fonksiyonu, cüzdan oluşturur.
 func (cli *CommandLine) CreateWallet() {
-	wallets, _ := wallet.CreateWallets()
-	address := wallets.AddWallet()
-	wallets.SaveFile()
-	fmt.Printf("New address is : %s\n", address)
+	wallets, _ := wallet.CreateWallets() // cüzdan dosyasını okur
+	address := wallets.AddWallet()       // cüzdan adresini oluşturur
+	wallets.SaveFile()                   // dosyayı kaydeder
+	fmt.Printf("\u001B[32mNew address is : %s\u001B[0m\n", address)
 }
 
 func (cli *CommandLine) Run() { // komut satırı işlemleri
