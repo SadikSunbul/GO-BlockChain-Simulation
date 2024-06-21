@@ -56,7 +56,7 @@ func (cli *CommandLine) printChain() {
 		for _, tx := range block.Transactions {
 			fmt.Println("║", tx)
 		}
-		fmt.Println("\u001B[97m╚═════════════════════════════════════════════════════════════════════════════════════════╝\n")
+		fmt.Println("\u001B[97m╚═════════════════════════════════════════════════════════════════════════════════════════╝")
 
 		if len(block.PrevHash) == 0 {
 			break
