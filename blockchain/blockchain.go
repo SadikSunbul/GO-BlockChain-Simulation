@@ -265,26 +265,33 @@ func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
 
 	return Transaction{}, errors.New("Transaction does not exist")
 }
-func (bc *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey) {
-	prevTXs := make(map[string]Transaction)
 
+// SignTransaction fonksiyonu, bir Transaction yapısını imzalar.
+// İmzalamak için verilen private anahtar (privKey) kullanılır ve işlemi daha önce yapılmış olan işlemlerle ilişkilendirir.
+func (bc *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey) {
+	prevTXs := make(map[string]Transaction) // Önceki işlemlerin haritasını (map) oluşturur
+
+	// İşlemdeki her girdi için önceki işlemi bulup prevTXs haritasına ekler
 	for _, in := range tx.Inputs {
-		prevTX, err := bc.FindTransaction(in.ID)
-		Handle(err)
-		prevTXs[hex.EncodeToString(prevTX.ID)] = prevTX
+		prevTX, err := bc.FindTransaction(in.ID)        // Girdinin referans verdiği önceki işlemi bulur
+		Handle(err)                                     // Hata durumunda işlemi ele alır
+		prevTXs[hex.EncodeToString(prevTX.ID)] = prevTX // Önceki işlemi haritaya (map) ekler (ID'si hex olarak kodlanmış olarak)
 	}
 
-	tx.Sign(privKey, prevTXs)
+	tx.Sign(privKey, prevTXs) // Transaction yapısını imzalar
 }
 
+// VerifyTransaction fonksiyonu, bir Transaction yapısının geçerliliğini doğrular.
+// Geçerlilik kontrolü için verilen önceki işlemler haritası (prevTXs) kullanılır.
 func (bc *BlockChain) VerifyTransaction(tx *Transaction) bool {
-	prevTXs := make(map[string]Transaction)
+	prevTXs := make(map[string]Transaction) // Önceki işlemlerin haritasını (map) oluşturur
 
+	// İşlemdeki her girdi için önceki işlemi bulup prevTXs haritasına ekler
 	for _, in := range tx.Inputs {
-		prevTX, err := bc.FindTransaction(in.ID)
-		Handle(err)
-		prevTXs[hex.EncodeToString(prevTX.ID)] = prevTX
+		prevTX, err := bc.FindTransaction(in.ID)        // Girdinin referans verdiği önceki işlemi bulur
+		Handle(err)                                     // Hata durumunda işlemi ele alır
+		prevTXs[hex.EncodeToString(prevTX.ID)] = prevTX // Önceki işlemi haritaya (map) ekler (ID'si hex olarak kodlanmış olarak)
 	}
 
-	return tx.Verify(prevTXs)
+	return tx.Verify(prevTXs) // Transaction yapısının geçerliliğini doğrular
 }
