@@ -49,7 +49,7 @@ func (tx *Transaction) SetID() { //Id olusturur transectıonun
 }
 
 // NewTransaction, belirtilen bir adresten başka bir adrese belirtilen miktar token transferi yapacak yeni bir işlem oluşturur.
-func NewTransaction(from, to string, amount int, chain *BlockChain) *Transaction {
+func NewTransaction(from, to string, amount int, UTXO *UTXOSet) *Transaction {
 	var inputs []TxInput   // Bu işlemdeki girdiler (inputs)
 	var outputs []TxOutput // Bu işlemdeki çıktılar (outputs)
 
@@ -60,7 +60,7 @@ func NewTransaction(from, to string, amount int, chain *BlockChain) *Transaction
 	pubKeyHash := wallet.PublicKeyHash(w.PublicKey) // Cüzdanın public key hash değerini hesaplar
 
 	// Belirtilen miktarda token transferi için harcanabilir çıktıları bulur
-	acc, validOutputs := chain.FindSpendableOutputs(pubKeyHash, amount)
+	acc, validOutputs := UTXO.FindSpendableOutputs(pubKeyHash, amount)
 
 	if acc < amount { // Hesaptaki bakiye belirtilen miktarı karşılayamıyorsa
 		log.Panic("Error: not enough funds") // Hata mesajı verir ve işlemi sonlandırır
@@ -87,8 +87,8 @@ func NewTransaction(from, to string, amount int, chain *BlockChain) *Transaction
 
 	// İşlem yapısını oluşturur
 	tx := Transaction{nil, inputs, outputs}
-	tx.ID = tx.Hash()                        // İşlemin hash değerini hesaplar
-	chain.SignTransaction(&tx, w.PrivateKey) // İşlemi imzalar
+	tx.ID = tx.Hash()                                  // İşlemin hash değerini hesaplar
+	UTXO.Blockchain.SignTransaction(&tx, w.PrivateKey) // İşlemi imzalar
 
 	return &tx // Oluşturulan işlem yapısını döndürür
 }

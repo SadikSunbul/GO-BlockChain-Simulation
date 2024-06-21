@@ -22,7 +22,7 @@ type BlockChain struct { //Block zıncırını tutar
 	Database *badger.DB
 }
 
-type BlockChainIterator struct { //BlockChain üzerinde gezmek ıcın kullanılır
+type BlockChainIterator struct { //Blockchain üzerinde gezmek ıcın kullanılır
 	CurrentHash []byte
 	Database    *badger.DB
 }
@@ -125,7 +125,7 @@ func (chain *BlockChain) AddBlock(transactions []*Transaction) {
 		Handle(err)
 		err = txn.Set([]byte("lh"), newBlock.Hash) //lh degerını guncelle
 
-		chain.LastHash = newBlock.Hash //mevcut BlockChain nesenesındekı lastHası guncelle cunku artık son uretılen blog newBlock
+		chain.LastHash = newBlock.Hash //mevcut Blockchain nesenesındekı lastHası guncelle cunku artık son uretılen blog newBlock
 		return err
 	})
 	Handle(err)
@@ -153,22 +153,74 @@ func (iter *BlockChainIterator) Next() *Block {
 	return block                      //gerıye su ankı blogu gerı doner
 }
 
-// FindUnspentTransactions : Bu fonksiyon, bir blockchain üzerinde belirli bir adrese gönderilmiş ancak henüz harcanmamış (unspent) işlemleri bulmak için kullanılır.
-func (chain *BlockChain) FindUnspentTransactions(pubKeyHash []byte) []Transaction {
-	var unspentTxs []Transaction        // Harcanmamış işlemleri tutacak slice
-	spentTXOs := make(map[string][]int) // Harcanmış işlemlerin çıktılarını izlemek için kullanılacak map
+//
+//// FindUnspentTransactions : Bu fonksiyon, bir blockchain üzerinde belirli bir adrese gönderilmiş ancak henüz harcanmamış (unspent) işlemleri bulmak için kullanılır.
+//func (chain *BlockChain) FindUnspentTransactions(pubKeyHash []byte) []Transaction {
+//	var unspentTxs []Transaction        // Harcanmamış işlemleri tutacak slice
+//	spentTXOs := make(map[string][]int) // Harcanmış işlemlerin çıktılarını izlemek için kullanılacak map
+//
+//	iter := chain.Iterator() // Blok zinciri iteratorunu olustur
+//
+//	for {
+//		block := iter.Next() // Sıradaki bloğu al
+//
+//		for _, tx := range block.Transactions { // Bloktaki her işlem için döngü
+//			txID := hex.EncodeToString(tx.ID) // İşlem ID'sini hex formatına dönüştürerek al
+//
+//		Outputs:
+//			for outIdx, out := range tx.Outputs { // İşlemin çıktıları üzerinde döngü
+//				// Eğer bu çıktı daha önce harcanmışsa atla
+//				if spentTXOs[txID] != nil {
+//					for _, spentOut := range spentTXOs[txID] {
+//						if spentOut == outIdx {
+//							continue Outputs
+//						}
+//					}
+//				}
+//
+//				// Eğer çıktı, belirtilen adrese gönderilmişse
+//				if out.IsLockedWithKey(pubKeyHash) { //aranan adres tarafından acılıp acılmayacagı kontrol edılır
+//					unspentTxs = append(unspentTxs, *tx) // Harcanmamış işlemler listesine ekle
+//				}
+//			}
+//
+//			// Coinbase işlemi değilse (yani normal bir transfer işlemi)
+//			if tx.IsCoinbase() == false {
+//				// İşlemin girdileri üzerinde döngü
+//				for _, in := range tx.Inputs {
+//					// Eğer bu girişin kilidi (unlock) belirtilen adrese açılabiliyorsa
+//					if in.UsesKey(pubKeyHash) {
+//						inTxID := hex.EncodeToString(in.ID)                   // Girişin işlem ID'sini alarak hex formatına dönüştür
+//						spentTXOs[inTxID] = append(spentTXOs[inTxID], in.Out) // Harcanmış işlemler listesine ekle
+//					}
+//				}
+//			}
+//		}
+//
+//		// Eğer bloğun önceki hash değeri yoksa (genesis block durumu), iterasyonu sonlandır
+//		if len(block.PrevHash) == 0 {
+//			break
+//		}
+//	}
+//
+//	return unspentTxs // Harcanmamış işlemleri içeren slice'i döndür
+//}
 
-	iter := chain.Iterator() // Blok zinciri iteratorunu olustur
+// FindUTXO fonksiyonu, belirtilen bir adrese gönderilmiş ve henüz harcanmamış (UTXO) çıktıları bulmak için kullanılır.
+func (chain *BlockChain) FindUTXO() map[string]TxOutputs {
+	UTXO := make(map[string]TxOutputs)
+	spentTXOs := make(map[string][]int)
+
+	iter := chain.Iterator()
 
 	for {
-		block := iter.Next() // Sıradaki bloğu al
+		block := iter.Next()
 
-		for _, tx := range block.Transactions { // Bloktaki her işlem için döngü
-			txID := hex.EncodeToString(tx.ID) // İşlem ID'sini hex formatına dönüştürerek al
+		for _, tx := range block.Transactions {
+			txID := hex.EncodeToString(tx.ID)
 
 		Outputs:
-			for outIdx, out := range tx.Outputs { // İşlemin çıktıları üzerinde döngü
-				// Eğer bu çıktı daha önce harcanmışsa atla
+			for outIdx, out := range tx.Outputs {
 				if spentTXOs[txID] != nil {
 					for _, spentOut := range spentTXOs[txID] {
 						if spentOut == outIdx {
@@ -176,75 +228,23 @@ func (chain *BlockChain) FindUnspentTransactions(pubKeyHash []byte) []Transactio
 						}
 					}
 				}
-
-				// Eğer çıktı, belirtilen adrese gönderilmişse
-				if out.IsLockedWithKey(pubKeyHash) { //aranan adres tarafından acılıp acılmayacagı kontrol edılır
-					unspentTxs = append(unspentTxs, *tx) // Harcanmamış işlemler listesine ekle
-				}
+				outs := UTXO[txID]
+				outs.Outputs = append(outs.Outputs, out)
+				UTXO[txID] = outs
 			}
-
-			// Coinbase işlemi değilse (yani normal bir transfer işlemi)
 			if tx.IsCoinbase() == false {
-				// İşlemin girdileri üzerinde döngü
 				for _, in := range tx.Inputs {
-					// Eğer bu girişin kilidi (unlock) belirtilen adrese açılabiliyorsa
-					if in.UsesKey(pubKeyHash) {
-						inTxID := hex.EncodeToString(in.ID)                   // Girişin işlem ID'sini alarak hex formatına dönüştür
-						spentTXOs[inTxID] = append(spentTXOs[inTxID], in.Out) // Harcanmış işlemler listesine ekle
-					}
+					inTxID := hex.EncodeToString(in.ID)
+					spentTXOs[inTxID] = append(spentTXOs[inTxID], in.Out)
 				}
 			}
 		}
 
-		// Eğer bloğun önceki hash değeri yoksa (genesis block durumu), iterasyonu sonlandır
 		if len(block.PrevHash) == 0 {
 			break
 		}
 	}
-
-	return unspentTxs // Harcanmamış işlemleri içeren slice'i döndür
-}
-
-// FindUTXO fonksiyonu, belirtilen bir adrese gönderilmiş ve henüz harcanmamış (UTXO) çıktıları bulmak için kullanılır.
-func (chain *BlockChain) FindUTXO(pubKeyHash []byte) []TxOutput {
-	var UTXOs []TxOutput                                             // Harcanmamış çıktıları (UTXO'ları) tutacak slice oluşturulur
-	unspentTransactions := chain.FindUnspentTransactions(pubKeyHash) // Belirtilen adrese gönderilmiş harcanmamış işlemleri bul
-
-	for _, tx := range unspentTransactions { // Her harcanmamış işlem için döngü
-		for _, out := range tx.Outputs { // İşlemin çıktıları üzerinde döngü
-			if out.IsLockedWithKey(pubKeyHash) { // Çıktı, belirtilen adrese gönderilmişse
-				UTXOs = append(UTXOs, out) // UTXO'lar listesine çıktıyı ekle
-			}
-		}
-	}
-	return UTXOs // Harcanmamış çıktıları (UTXO'ları) içeren slice'i döndür
-}
-
-// FindSpendableOutputs, belirtilen bir adrese gönderilmiş ve henüz harcanmamış çıktıları (UTXO'ları) bulmak için kullanılır.
-// Ayrıca, bu çıktılar aracılığıyla belirli bir miktar token transfer edilebilecek çıktıları belirler.
-func (chain *BlockChain) FindSpendableOutputs(pubKeyHash []byte, amount int) (int, map[string][]int) {
-	unspentOuts := make(map[string][]int)                   // Harcanmamış çıktıları (UTXO'ları) tutacak map
-	unspentTxs := chain.FindUnspentTransactions(pubKeyHash) // Belirtilen adrese gönderilmiş harcanmamış işlemleri bul
-
-	accumulated := 0 // Toplam biriktirilen miktar
-
-Work:
-	for _, tx := range unspentTxs { // Her harcanmamış işlem için döngü başlat
-		txID := hex.EncodeToString(tx.ID) // İşlem ID'sini hex formatına dönüştür
-
-		for outIdx, out := range tx.Outputs { // İşlemin çıktıları üzerinde döngü
-			if out.IsLockedWithKey(pubKeyHash) && accumulated < amount { // Çıktı, belirtilen adrese gönderilmiş ve biriktirilen miktar istenilen miktarı aşmamışsa
-				accumulated += out.Value                              // Çıktının değerini biriktirilen miktar'a ekle
-				unspentOuts[txID] = append(unspentOuts[txID], outIdx) // Harcanmamış çıktıları map'e ekle
-
-				if accumulated >= amount { // Biriktirilen miktar istenilen miktara eşit veya fazla ise
-					break Work // İşlemi sonlandır
-				}
-			}
-		}
-	}
-
-	return accumulated, unspentOuts // Biriktirilen toplam miktarı ve harcanmamış çıktıları map olarak döndür
+	return UTXO
 }
 
 // FindTransaction fonksiyonu, belirtilen bir işlem ID'sine sahip olan işlemi blok zincirinde bulur.

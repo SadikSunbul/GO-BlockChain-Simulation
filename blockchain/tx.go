@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"bytes"
+	"encoding/gob"
 	"github.com/SadikSunbul/GO-BlockChain-Simulation/wallet"
 )
 
@@ -15,6 +16,10 @@ type TxInput struct { //transectıon girdileri
 	Out       int    //cıkıs endexı  referans eder
 	Signature []byte // imza
 	PubKey    []byte // public key
+}
+
+type TxOutputs struct {
+	Outputs []TxOutput
 }
 
 // UsesKey fonksiyonu, TxInput yapısının bir public key hash kodunu kullanıp kullanmadığını kontrol eder.
@@ -54,4 +59,24 @@ func NewTXOutput(value int, address string) *TxOutput {
 
 	// Hazırlanan TxOutput yapısını döndürür.
 	return txo
+}
+
+// Serialize fonksiyonu, TxOutput yapısını byte dizisine dönüştürür.
+func (outs TxOutputs) Serialize() []byte {
+	var buffer bytes.Buffer // byte dizisi oluşturulur
+	encode := gob.NewEncoder(&buffer)
+	err := encode.Encode(outs)
+	Handle(err)
+	return buffer.Bytes()
+}
+
+// DeserializeOutputs fonksiyonu, byte dizisini TxOutput yapısına dönüştürür.
+func DeserializeOutputs(data []byte) TxOutputs {
+	var outputs TxOutputs // TxOutput yapısı oluşturulur
+
+	decode := gob.NewDecoder(bytes.NewReader(data))
+	err := decode.Decode(&outputs) // byte dizisini TxOutput yapısına dönüştürür
+	Handle(err)
+
+	return outputs
 }
