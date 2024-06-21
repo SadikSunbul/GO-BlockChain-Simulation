@@ -24,8 +24,8 @@ func (cli *CommandLine) printUsage() {
 	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "printchain", "Blok zincirindeki tüm blokları yazdırır")
 	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "send -from FROM -to TO -amount AMOUNT", "Belirtilen miktarı belirtilen adresten diğer bir adrese gönderir")
 	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "createwallet", "Yeni bir cüzdan oluşturur")
-	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "listaddresses", "Cüzdan dosyamızdaki adresleri listeleyin\n")
-	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "reindexutxo", "UTXO setini yeniden oluşturur\n")
+	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "listaddresses", "Cüzdan dosyamızdaki adresleri listeleyin")
+	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "reindexutxo", "UTXO setini yeniden oluşturur")
 
 }
 
