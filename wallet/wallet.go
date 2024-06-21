@@ -17,7 +17,7 @@ const (
 
 type Wallet struct {
 	PrivateKey ecdsa.PrivateKey //eliptik eğrisi ile private key
-	PublickKey []byte
+	PublicKey  []byte
 }
 
 // NewKeyPair fonksiyonu, bir private ve public key olusturur
@@ -60,7 +60,7 @@ func Checksum(payload []byte) []byte {
 
 // Address fonksiyonu, bir adres olusturur
 func (w Wallet) Address() []byte {
-	pubHash := PublicKeyHash(w.PublickKey)               // public key hash kodu olusturulur
+	pubHash := PublicKeyHash(w.PublicKey)                // public key hash kodu olusturulur
 	versionedHash := append([]byte{version}, pubHash...) // version ve public key hash kodu birleştirilir
 	checksum := Checksum(versionedHash)                  // checksum kodu olusturulur
 	fullHash := append(versionedHash, checksum...)       // versionedHash ve checksum kodu birleştirilir
@@ -88,7 +88,7 @@ func (w Wallet) Address() []byte {
 // ValidateAddress fonksiyonu, bir adresin gecerli olup olmadıgını kontrol eder
 func ValidateAddress(address string) bool {
 	pubKeyHash := Base58Decode([]byte(address))                        // adresi byte dizisine dönüştürülür
-	actualChecksum := pubKeyHash[len(pubKeyHash)-checksumLength:]      // checksum kodu alınır
+	actualChecksum := pubKeyHash[len(pubKeyHash)-checksumLength:]      // checksum kodu alınır pubKeyHash[5:] 5. indeks den sona kadar oalnı alır
 	version := pubKeyHash[0]                                           // version kodu alınır
 	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-checksumLength]        // version ve checksum kodu silinir
 	targetChecksum := Checksum(append([]byte{version}, pubKeyHash...)) // checksum kodu olusturulur

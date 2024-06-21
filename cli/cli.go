@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strconv"
 )
 
 // CommandLine struct, komut satırı işlemleri için kullanılan yapıyı temsil eder.
@@ -17,13 +18,14 @@ type CommandLine struct {
 
 // PrintUsage fonksiyonu, komut satırında kullanıcıya kullanım talimatlarını gösterir.
 func (cli *CommandLine) printUsage() {
-	fmt.Printf("Usage:\n")
-	fmt.Printf(" %-40s : %s\n", "getbalance -address ADDRESS", "Belirtilen adrese ait bakiyeyi görüntüler")
-	fmt.Printf(" %-40s : %s\n", "createblockchain -address ADDRESS", "Yeni bir blok zinciri oluşturur ve belirtilen adrese oluşum ödülünü gönderir")
-	fmt.Printf(" %-40s : %s\n", "printchain", "Blok zincirindeki tüm blokları yazdırır")
-	fmt.Printf(" %-40s : %s\n", "send -from FROM -to TO -amount AMOUNT", "Belirtilen miktarı belirtilen adresten diğer bir adrese gönderir")
-	fmt.Printf(" %-40s : %s\n", "createwallet", "-Yeni bir cüzdan oluşturur")
-	fmt.Printf(" %-40s : %s\n", "listaddresses", "Cüzdan dosyamızdaki adresleri listeleyin\n")
+	fmt.Printf("\033[35mUsage:\n\033[0m")
+	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "getbalance -address ADDRESS", "Belirtilen adrese ait bakiyeyi görüntüler")
+	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "createblockchain -address ADDRESS", "Yeni bir blok zinciri oluşturur ve belirtilen adrese oluşum ödülünü gönderir")
+	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "printchain", "Blok zincirindeki tüm blokları yazdırır")
+	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "send -from FROM -to TO -amount AMOUNT", "Belirtilen miktarı belirtilen adresten diğer bir adrese gönderir")
+	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "createwallet", "Yeni bir cüzdan oluşturur")
+	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "listaddresses", "Cüzdan dosyamızdaki adresleri listeleyin\n")
+
 }
 
 // validateArgs fonksiyonu, komut satırı argümanlarını doğrular.
@@ -40,50 +42,69 @@ func (cli *CommandLine) validateArgs() {
 func (cli *CommandLine) printChain() {
 	chain := blockchain.ContinueBlockChain("") // blockchain adında bir BlockChain nesnesi
 	defer chain.Database.Close()               // blok zincirini kapat
-	iter := chain.Iterator()                   // blok zinciri iteratorunu olustur
+	iter := chain.Iterator()                   // blok zinciri iteratorunu oluştur
 	fmt.Println()
+
 	for { // blok zinciri sonuna kadar döngü
 		block := iter.Next() // Sıradaki bloğu al
-
-		fmt.Printf(" %-10s : %x\n", "Prev. hash", block.PrevHash) // Blok zincirinden o bloğun önceki hash değerini yazdır
-		fmt.Printf(" %-10s : %x\n", "Hash", block.Hash)           // Blok zincirinden o bloğun hash değerini yazdır
-
+		fmt.Println("\033[97m╔══════════════════════════════════════════ BLOCK ═════════════════════════════════════════╗")
+		fmt.Printf("║ \033[32m%-10s : %x\033[0m\n", "Hash", block.Hash)
+		fmt.Printf("║ \033[32m%-10s : %x\033[0m\n", "Prev. hash", block.PrevHash)
 		pow := blockchain.NewProof(block)
-		fmt.Printf(" %-10s : %v\n", "PoW", pow.Validate()) // Blok zincirinden o bloğun proof of work değerini yazdır
-		fmt.Println()
+		fmt.Printf("║ \033[32m%-10s : %v\033[0m\n", "PoW", strconv.FormatBool(pow.Validate()))
+		// Blok zincirinden o bloğun proof of work değerini yazdır
+		for _, tx := range block.Transactions {
+			fmt.Println("║", tx)
+		}
+		fmt.Println("\u001B[97m╚═════════════════════════════════════════════════════════════════════════════════════════╝\n")
 
 		if len(block.PrevHash) == 0 {
 			break
 		}
+
 	}
 }
 
 func (cli *CommandLine) createBlockChain(address string) { // blockchain oluşturur
-	chain := blockchain.InitBlockChain(address) // blockchain adında bir BlockChain nesnesi
-	chain.Database.Close()                      // blok zincirini kapat
+	if !wallet.ValidateAddress(address) {
+		log.Panic("Address is not Valid")
+	}
+	chain := blockchain.InitBlockChain(address)
+	chain.Database.Close()
 	fmt.Println("Finished!")
 }
 
-func (cli *CommandLine) getBalance(address string) { // bakiye almak
-	chain := blockchain.ContinueBlockChain(address) // blockchain adında bir BlockChain nesnesi
-	defer chain.Database.Close()                    // blok zincirini kapat
+func (cli *CommandLine) getBalance(address string) {
+	if !wallet.ValidateAddress(address) {
+		log.Panic("Address is not Valid")
+	}
+	chain := blockchain.ContinueBlockChain(address)
+	defer chain.Database.Close()
 
 	balance := 0
-	UTXOs := chain.FindUTXO(address) // blok zincirinden o bloğun UTXO degerlerini al
+	pubKeyHash := wallet.Base58Decode([]byte(address))
+	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]
+	UTXOs := chain.FindUTXO(pubKeyHash)
 
-	for _, out := range UTXOs { // blok zincirinden o bloğun UTXO degerlerini döngürecek
-		balance += out.Value // blok zincirinden o bloğun UTXO degerlerinin toplamını al
+	for _, out := range UTXOs {
+		balance += out.Value
 	}
 
 	fmt.Printf("Balance of %s: %d\n", address, balance)
 }
 
-func (cli *CommandLine) send(from, to string, amount int) { // para göndermek
-	chain := blockchain.ContinueBlockChain(from) // blockchain adında bir BlockChain nesnesi
-	defer chain.Database.Close()                 // blok zincirini kapat
+func (cli *CommandLine) send(from, to string, amount int) {
+	if !wallet.ValidateAddress(to) {
+		log.Panic("Address is not Valid")
+	}
+	if !wallet.ValidateAddress(from) {
+		log.Panic("Address is not Valid")
+	}
+	chain := blockchain.ContinueBlockChain(from)
+	defer chain.Database.Close()
 
-	tx := blockchain.NewTransaction(from, to, amount, chain) // Yeni bir işlem oluştur
-	chain.AddBlock([]*blockchain.Transaction{tx})            // blok zincirine ekler
+	tx := blockchain.NewTransaction(from, to, amount, chain)
+	chain.AddBlock([]*blockchain.Transaction{tx})
 	fmt.Println("Success!")
 }
 
@@ -112,11 +133,12 @@ func (cli *CommandLine) Run() { // komut satırı işlemleri
 	createWalletCmd := flag.NewFlagSet("createwallet", flag.ExitOnError)
 	listAddressesCmd := flag.NewFlagSet("listaddresses", flag.ExitOnError)
 
-	getBalanceAddress := getBalanceCmd.String("address", "", "Bakiye almanın adresi")                                 // getbalance komutundaki adres bilgisini tanımla
-	createBlockchainAddress := createBlockchainCmd.String("address", "", "Genesis blok ödülünün gönderileceği adres") // createblockchain komutundaki adres bilgisini tanımla
-	sendFrom := sendCmd.String("from", "", "Kaynak cüzdan adresi")                                                    // send komutundaki kaynak adresini tanımla
-	sendTo := sendCmd.String("to", "", "Hedef cüzdan adresi")                                                         // send komutundaki hedef adresini tanımla
-	sendAmount := sendCmd.Int("amount", 0, "Gönderilecek tutar")                                                      // send komutundaki tutarı tanımla
+	getBalanceAddress := getBalanceCmd.String("\u001B[35maddress\u001B[0m", "", "\033[36mBakiye almanın adresi\033[0m")
+	createBlockchainAddress := createBlockchainCmd.String("\u001B[35maddress\u001B[0m", "", "\033[36mGenesis blok ödülünün gönderileceği adres\033[0m")
+	sendFrom := sendCmd.String("\u001B[35mfrom\u001B[0m", "", "\033[36mKaynak cüzdan adresi\033[0m")
+	sendTo := sendCmd.String("\u001B[35mto\u001B[0m", "", "\033[36mHedef cüzdan adresi\033[0m")
+	sendAmount := sendCmd.Int("\u001B[35mamount\u001B[0m", 0, "\033[36mGönderilecek tutar\033[0m")
+	// send komutundaki tutarı tanımla
 
 	switch os.Args[1] { // komut satırı argümanın hangi komut oldugunu bulur
 	case "getbalance": // getbalance komutunu çalıştır

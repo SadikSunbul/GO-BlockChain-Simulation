@@ -1,36 +1,40 @@
 package blockchain
 
+import (
+	"bytes"
+	"github.com/SadikSunbul/GO-BlockChain-Simulation/wallet"
+)
+
 type TxOutput struct { //transectıon cıktıları
-	Value  int    //token degeri
-	PubKey string //publıkkey sonra burası degısıcektır suan pubkey yerıne herhangıbır strıng deger kullanılıcak
+	Value     int    //token degeri
+	PublicKey []byte // public key hash
 }
 
 type TxInput struct { //transectıon girdileri
-	ID  []byte //cıkısı referans eder
-	Out int    //cıkıs endexı  referans eder
-	Sig string //gırıs verısıdir
+	ID        []byte //cıkısı referans eder
+	Out       int    //cıkıs endexı  referans eder
+	Signature []byte // imza
+	PubKey    []byte // public key
 }
 
-/*
-CanUnlock metodunun görevi, bir işlem girişinin belirli bir veri ile kilidini açıp açamayacağını kontrol etmektir.
-Genellikle işlem girişleri, işlemi imzalayan kişinin imzasını içerir. Bu metod, girişin imza alanının belirli bir
-veri ile eşleşip eşleşmediğini kontrol eder. Eğer eşleşiyorsa, girişin doğru kişi tarafından yapıldığı doğrulanmış olur.
-*/
-func (in *TxInput) CanUnlock(data string) bool {
-	return in.Sig == data
-	// Bu fonksiyon, bir işlem girişinin belirli bir veri ile kilidini açıp açamayacağını kontrol eder.
-	// Girişin imza (Sig) alanı, verilen data değeri ile eşleşiyorsa true döner.
-	// Bu, girişin sahibinin işlemi imzalayan doğru kişi olduğunu doğrular.
+func (in *TxInput) UsesKey(pubKeyHash []byte) bool {
+	lockingHash := wallet.PublicKeyHash(in.PubKey)
+
+	return bytes.Compare(lockingHash, pubKeyHash) == 0
 }
 
-/*
-CanBeUnlocked metodunun amacı, bir işlem çıkışının belirli bir veri ile kilidini açıp açamayacağını kontrol etmektir.
-Çıkış genellikle genel anahtar (public key) ile kilitlenmiştir ve bu metod, çıkışın belirli bir genel anahtar ile
-eşleşip eşleşmediğini kontrol eder. Eğer eşleşiyorsa, çıkışın doğru kişiye ait olduğu doğrulanmış olur.
-*/
-func (out *TxOutput) CanBeUnlocked(data string) bool {
-	return out.PubKey == data
-	// Bu fonksiyon, bir işlem çıkışının belirli bir veri ile kilidini açıp açamayacağını kontrol eder.
-	// Çıkışın genel anahtarı (PubKey), verilen data değeri ile eşleşiyorsa true döner.
-	// Bu, çıkışın belirli bir kişiye ait olduğunu doğrular.
+func (out *TxOutput) Lock(address []byte) {
+	pubKeyHash := wallet.Base58Decode(address)
+	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]
+	out.PublicKey = pubKeyHash
+}
+
+func (out *TxOutput) IsLockedWithKey(pubKeyHash []byte) bool {
+	return bytes.Compare(out.PublicKey, pubKeyHash) == 0
+}
+
+func NewTXOutput(value int, address string) *TxOutput {
+	txo := &TxOutput{value, nil}
+	txo.Lock([]byte(address))
+	return txo
 }

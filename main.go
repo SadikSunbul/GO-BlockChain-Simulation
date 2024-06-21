@@ -14,5 +14,5 @@ func main() {
 	w := wallet.MakeWallet()
 	w.Address()
 
-	//fmt.Print(wallet.ValidateAddress("1Dg9RoRcMYtcyj3dhXooFyjJubERMXRRwC"))
+	//fmt.Print(wallet.ValidateAddress("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"))
 }
