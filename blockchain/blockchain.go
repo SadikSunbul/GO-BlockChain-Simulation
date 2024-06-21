@@ -246,24 +246,27 @@ Work:
 
 	return accumulated, unspentOuts // Biriktirilen toplam miktarı ve harcanmamış çıktıları map olarak döndür
 }
+
+// FindTransaction fonksiyonu, belirtilen bir işlem ID'sine sahip olan işlemi blok zincirinde bulur.
+// ID, işlemin benzersiz tanımlayıcısıdır (genellikle işlemin hash değeri olarak kullanılır).
 func (bc *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
-	iter := bc.Iterator()
+	iter := bc.Iterator() // Blok zinciri üzerinde bir iterator oluşturur
 
 	for {
-		block := iter.Next()
+		block := iter.Next() // Sonraki bloğu alır
 
-		for _, tx := range block.Transactions {
-			if bytes.Compare(tx.ID, ID) == 0 {
-				return *tx, nil
+		for _, tx := range block.Transactions { // Bloğün işlemleri üzerinde döner
+			if bytes.Compare(tx.ID, ID) == 0 { // İşlem ID'si belirtilen ID'ye eşitse
+				return *tx, nil // İşlemi bulduğunda işlemi ve nil hatasını döndürür
 			}
 		}
 
-		if len(block.PrevHash) == 0 {
-			break
+		if len(block.PrevHash) == 0 { // Eğer bloğun önceki hash değeri yoksa (genesis blok)
+			break // Döngüyü sonlandır
 		}
 	}
 
-	return Transaction{}, errors.New("Transaction does not exist")
+	return Transaction{}, errors.New("Transaction does not exist") // İşlem bulunamazsa hata döndürür
 }
 
 // SignTransaction fonksiyonu, bir Transaction yapısını imzalar.
