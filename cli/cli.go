@@ -84,7 +84,7 @@ func (cli *CommandLine) createBlockChain(address string) { // blockchain oluştu
 		log.Panic("\033[31mAddress is not Valid\033[0m")
 	}
 	chain := blockchain.InitBlockChain(address) // adresin blok zincirini oluşturur
-	chain.Database.Close()                      // blok zincirini kapat
+	defer chain.Database.Close()                // blok zincirini kapat
 
 	UTXOSet := blockchain.UTXOSet{chain} // adresin UTXO setini oluşturur
 	UTXOSet.Reindex()                    // adresin UTXO setini yeniden oluşturur
