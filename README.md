@@ -1,4 +1,6 @@
 [![Go](https://github.com/SadikSunbul/GO-BlockChain-Simulation/actions/workflows/go.yml/badge.svg)](https://github.com/SadikSunbul/GO-BlockChain-Simulation/actions/workflows/go.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/SadikSunbul/GO-BlockChain-Simulation)](https://goreportcard.com/report/github.com/SadikSunbul/GO-BlockChain-Simulation)
+[![Version](https://img.shields.io/badge/Version-1.0-blue)]()
 
 # GO-BlockChain-Simulation
 
