@@ -24,28 +24,21 @@ type Transaction struct {
 // CoinbaseTx fonksiyonu, bir coinbase transaction oluşturur.
 func CoinbaseTx(to, data string) *Transaction {
 	if data == "" { //data boş ise gir
-		data = fmt.Sprintf("Coins to %s", to) //paralar to da der
+		randData := make([]byte, 24)  //data 24 byte'lık bir diziye dönüştür
+		_, err := rand.Read(randData) //rastgele sayı uretıcısı ile diziye dönüştür (diziyi doldur)
+		if err != nil {
+			log.Panic(err)
+		}
+		data = fmt.Sprintf("%x", randData) // diziyi stringe doğru dönüştür
+
 	}
 
 	txin := TxInput{[]byte{}, -1, nil, []byte(data)} //hıcbır cıktıya referabs vermez ,cıkıs endexi -1 aynı referans yok , sadce data mesajı vardır
-	txout := NewTXOutput(100, to)                    //100 tokeni to ya gonderırı
+	txout := NewTXOutput(20, to)                     //100 tokeni to ya gonderırı
 
 	tx := Transaction{nil, []TxInput{txin}, []TxOutput{*txout}} //transectıonı olustururuz
-	tx.SetID()                                                  //Transectıon Id sını olustururuz
+	tx.ID = tx.Hash()                                           //Transectıon hashini olustururuz                                           //Transectıon Id sını olustururuz
 	return &tx
-}
-
-// SetID fonksiyonu, Transectıon Id sını olusturur.
-func (tx *Transaction) SetID() { //Id olusturur transectıonun
-	var encoded bytes.Buffer
-	var hash [32]byte
-
-	encode := gob.NewEncoder(&encoded)
-	err := encode.Encode(tx) //transectıonu encode edıyoruz
-	Handle(err)
-
-	hash = sha256.Sum256(encoded.Bytes()) //transectıonu byte seklınde sha256 ıle sıfrelıyoruz ve ıd yı urettık
-	tx.ID = hash[:]
 }
 
 // NewTransaction, belirtilen bir adresten başka bir adrese belirtilen miktar token transferi yapacak yeni bir işlem oluşturur.

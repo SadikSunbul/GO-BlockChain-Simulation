@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/gob"
 	"log"
 )
@@ -14,27 +13,19 @@ type Block struct {
 	Nonce        int
 }
 
+// HashTransactions fonksiyonu, bloğun islemlerini hash eder
 func (b *Block) HashTransactions() []byte {
-	var txHashes [][]byte // İşlemlerin kimliklerini (hash'lerini) tutmak için bir slice tanımlıyoruz
-	var txHash []byte     // Son hesaplanan hash'i tutacak byte slice
+	var txHashes [][]byte
 
-	// Bloktaki her bir işlem için döngü
-	for _, tx := range b.Transactions {
-		txHashes = append(txHashes, tx.ID) // Her işlemin ID'sini (hash'ini) txHashes slice'ına ekliyoruz
+	for _, tx := range b.Transactions { //islemi byte dizisine dönüştürür
+		txHashes = append(txHashes, tx.Serialize()) //islemi byte dizisine dönüştürür
 	}
+	tree := NewMerkleTree(txHashes) //merkle tree olusturulur
 
-	// txHashes içindeki tüm işlem kimliklerini birleştirip tek bir byte dizisi oluşturuyoruz
-	concatenated := bytes.Join(txHashes, []byte{})
-
-	// concatenated byte dizisinin SHA-256 hash'ini hesaplıyoruz
-	hash := sha256.Sum256(concatenated)
-
-	// [32]byte türündeki hash'i []byte türüne dönüştürüyoruz
-	txHash = hash[:]
-
-	return txHash[:] // Hesaplanan hash'i döndürüyoruz
+	return tree.RootNode.Data //merkle treein rootunun byte dizisine dönüştürülür
 }
 
+// CreateBlock fonksiyonu, yeni bir bloğu olusturur
 func CreateBlock(tsx []*Transaction, prevHash []byte) *Block {
 	block := &Block{[]byte{}, tsx, prevHash, 0} //[]byte(data) kısmı strıng ıfadeyi byte dizisine donduruyor
 
@@ -45,12 +36,14 @@ func CreateBlock(tsx []*Transaction, prevHash []byte) *Block {
 	return block
 }
 
+// Genesis fonksiyonu, ilk bloğu olusturur
 func Genesis(coinbase *Transaction) *Block {
 	return CreateBlock([]*Transaction{coinbase}, []byte{})
 }
 
 //Badger DB sadece byte kabul ettıgı ıcın serılestırme ve deserilize ıslemlerı kolyalastıralım
 
+// Serialize fonksiyonu, bloğu byte dizisine dönüştürür
 func (b *Block) Serialize() []byte {
 	var res bytes.Buffer // bir bytes.Buffer nesnesi oluşturuluyor
 
@@ -86,6 +79,7 @@ func Deserilize(data []byte) *Block {
 	return &block
 }
 
+// Handle fonksiyonu, oluşan hata durumunda programı durdurur.
 func Handle(err error) {
 	if err != nil {
 		log.Panic(err)

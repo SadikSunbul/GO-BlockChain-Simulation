@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dgraph-io/badger"
+	"log"
 	"os"
 	"runtime"
 )
@@ -109,26 +110,38 @@ func InitBlockChain(address string) *BlockChain {
 }
 
 // AddBlock  block zincirine  blok elememızı saglar
-func (chain *BlockChain) AddBlock(transactions []*Transaction) {
-	var lastHash []byte                                      //son  blogu tutucak
-	err := chain.Database.View(func(txn *badger.Txn) error { //verıtabanında okuma ıslemı yapıca k
-		item, err := txn.Get([]byte("lh")) //lh degerını oku
+func (chain *BlockChain) AddBlock(transactions []*Transaction) *Block {
+	var lastHash []byte //lastHash degerini olusturduk
+
+	for _, tx := range transactions { //gelen transactionları döndürerek
+		if chain.VerifyTransaction(tx) != true { //Gelen transactionları kontrol edip
+			log.Panic("Invalid Transaction") //Hatalı bir transaction varsa hata mesajını verir
+		}
+	}
+
+	err := chain.Database.View(func(txn *badger.Txn) error { //veritabanından son hash degerini alıyoruz
+		item, err := txn.Get([]byte("lh")) //son hash degerini alıyoruz
 		Handle(err)
-		lastHash, err = item.ValueCopy(nil) //degeri kopyala
+		lastHash, err = item.ValueCopy(nil) //son hash degerini alıyoruz
+
 		return err
 	})
 	Handle(err)
-	newBlock := CreateBlock(transactions, lastHash) //blogu olusturt
 
-	err = chain.Database.Update(func(txn *badger.Txn) error { //verıtabanında bır guncelleme ekleme yapılıcak
-		err := txn.Set(newBlock.Hash, newBlock.Serialize()) //yenı blogu verıtabanına ekle
+	newBlock := CreateBlock(transactions, lastHash) //yeni blok olusturuyoruz
+
+	err = chain.Database.Update(func(txn *badger.Txn) error { //veritabanına yeni blok ekliyoruz
+		err := txn.Set(newBlock.Hash, newBlock.Serialize()) //yeni blok veritabanına kaydediliyor
 		Handle(err)
-		err = txn.Set([]byte("lh"), newBlock.Hash) //lh degerını guncelle
+		err = txn.Set([]byte("lh"), newBlock.Hash) //son hash degeri veritabanına kaydediliyor
 
-		chain.LastHash = newBlock.Hash //mevcut Blockchain nesenesındekı lastHası guncelle cunku artık son uretılen blog newBlock
+		chain.LastHash = newBlock.Hash //son hash degeri veritabanına kaydedildi
+
 		return err
 	})
 	Handle(err)
+
+	return newBlock
 }
 
 // Iterator :BlockChaın de okuma işlemi yapmak için başlangıç değerlerini atayan kod
@@ -287,6 +300,11 @@ func (bc *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey)
 // VerifyTransaction fonksiyonu, bir Transaction yapısının geçerliliğini doğrular.
 // Geçerlilik kontrolü için verilen önceki işlemler haritası (prevTXs) kullanılır.
 func (bc *BlockChain) VerifyTransaction(tx *Transaction) bool {
+
+	if tx.IsCoinbase() {
+		return true
+	}
+
 	prevTXs := make(map[string]Transaction) // Önceki işlemlerin haritasını (map) oluşturur
 
 	// İşlemdeki her girdi için önceki işlemi bulup prevTXs haritasına ekler

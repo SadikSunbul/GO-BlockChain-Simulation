@@ -125,9 +125,11 @@ func (cli *CommandLine) send(from, to string, amount int) {
 	UTXOSet := blockchain.UTXOSet{chain}         // gonderenin UTXO setini oluşturur
 	defer chain.Database.Close()                 // blok zincirini kapat
 
-	tx := blockchain.NewTransaction(from, to, amount, &UTXOSet) // yeni bir işlem oluşturur
-	chain.AddBlock([]*blockchain.Transaction{tx})               // blok zincirine ekler
-	fmt.Println("\u001B[32mSuccess!\u001B[0m")                  // basarılı mesajı verir
+	tx := blockchain.NewTransaction(from, to, amount, &UTXOSet)  // yeni bir işlem oluşturur
+	cbTx := blockchain.CoinbaseTx(from, "")                      //madencının parasını verıcezdrom olan madencı burada
+	block := chain.AddBlock([]*blockchain.Transaction{cbTx, tx}) // blok zincirine ekler
+	UTXOSet.Update(block)                                        // UTXO setini yeniden oluşturur
+	fmt.Println("\u001B[32mSuccess!\u001B[0m")                   // basarılı mesajı verir
 }
 
 // listAddresses fonksiyonu, cüzdan adreslerini listeler.
