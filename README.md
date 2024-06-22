@@ -7,6 +7,8 @@
 GO-BlockChain-Simulation is a blockchain simulation written in Go. This project is developed to understand and implement the fundamentals of blockchain technology.
 ***
 
+<img src="https://repository-images.githubusercontent.com/815066994/a67ad049-f2ce-4276-8f24-5f01ceefaf30">
+
 ## Project Structure
 
 The project consists of the following components:
