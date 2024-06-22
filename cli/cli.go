@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/SadikSunbul/GO-BlockChain-Simulation/blockchain"
+	"github.com/SadikSunbul/GO-BlockChain-Simulation/network"
 	"github.com/SadikSunbul/GO-BlockChain-Simulation/wallet"
 	"log"
 	"os"
@@ -22,22 +23,36 @@ func (cli *CommandLine) printUsage() {
 	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "getbalance -address ADDRESS", "Belirtilen adrese ait bakiyeyi görüntüler")
 	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "createblockchain -address ADDRESS", "Yeni bir blok zinciri oluşturur ve belirtilen adrese oluşum ödülünü gönderir")
 	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "printchain", "Blok zincirindeki tüm blokları yazdırır")
-	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "send -from FROM -to TO -amount AMOUNT", "Belirtilen miktarı belirtilen adresten diğer bir adrese gönderir")
+	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "send -from FROM -to TO -amount AMOUNT -mine", "Belirli bir miktarda coin gönder. Ardından -mine bayrağı ayarlanır, bu düğüm üzerinde madencilik yap")
 	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "createwallet", "Yeni bir cüzdan oluşturur")
 	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "listaddresses", "Cüzdan dosyamızdaki adresleri listeleyin")
 	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "reindexutxo", "UTXO setini yeniden oluşturur")
+	fmt.Printf(" \033[35m%-40s : %s\n\033[0m", "startnode -miner ADDRESS", "NODE_ID ortamında belirtilen kimliğe sahip bir düğüm başlatın. var. -miner madenciliği mümkün kılar")
 
 }
 
 // reindexUTXO fonksiyonu, UTXO setini yeniden oluşturur.
-func (cli *CommandLine) reindexUTXO() {
-	chain := blockchain.ContinueBlockChain("") // blockchain adında bir Blockchain nesnesi
-	defer chain.Database.Close()               // blok zincirini kapat
-	UTXOSet := blockchain.UTXOSet{chain}       // UTXO setini oluştur
-	UTXOSet.Reindex()                          // UTXO setini yeniden oluştur
+func (cli *CommandLine) reindexUTXO(nodeID string) {
+	chain := blockchain.ContinueBlockChain(nodeID) // blockchain adında bir Blockchain nesnesi
+	defer chain.Database.Close()                   // blok zincirini kapat
+	UTXOSet := blockchain.UTXOSet{chain}           // UTXO setini oluştur
+	UTXOSet.Reindex()                              // UTXO setini yeniden oluştur
 
-	count := UTXOSet.CountTransactions()                                    // UTXO setindeki işlemleri sayar
-	fmt.Printf("Done! There are %d transactions in the UTXO set.\n", count) // UTXO setindeki işlemlerin sayısını ekrana yazdırır
+	count := UTXOSet.CountTransactions()                            // UTXO setindeki işlemleri sayar
+	fmt.Printf("Tamamlamak! UTXO kümesinde %d işlem var.\n", count) // UTXO setindeki işlemlerin sayısını ekrana yazdırır
+}
+
+func (cli *CommandLine) StartNode(nodeID, minerAddress string) {
+	fmt.Printf("Başlangıç Düğümü\n %s\n", nodeID)
+
+	if len(minerAddress) > 0 {
+		if wallet.ValidateAddress(minerAddress) {
+			fmt.Println("Madencilik açık. Ödülleri alacağınız adres: ", minerAddress)
+		} else {
+			log.Panic("Yanlış madenci adresi!")
+		}
+	}
+	network.StartServer(nodeID, minerAddress)
 }
 
 // validateArgs fonksiyonu, komut satırı argümanlarını doğrular.
@@ -52,10 +67,10 @@ func (cli *CommandLine) validateArgs() {
 }
 
 // printChain fonksiyonu, blok zincirindeki tüm blokları yazdırır
-func (cli *CommandLine) printChain() {
-	chain := blockchain.ContinueBlockChain("") // blockchain adında bir Blockchain nesnesi
-	defer chain.Database.Close()               // blok zincirini kapat
-	iter := chain.Iterator()                   // blok zinciri iteratorunu oluştur
+func (cli *CommandLine) printChain(nodeID string) {
+	chain := blockchain.ContinueBlockChain(nodeID) // blockchain adında bir Blockchain nesnesi
+	defer chain.Database.Close()                   // blok zincirini kapat
+	iter := chain.Iterator()                       // blok zinciri iteratorunu oluştur
 	fmt.Println()
 
 	for { // blok zinciri sonuna kadar döngü
@@ -79,12 +94,12 @@ func (cli *CommandLine) printChain() {
 }
 
 // createBlockChain fonksiyonu, belirtilen adresin blok zincirini oluşturur
-func (cli *CommandLine) createBlockChain(address string) { // blockchain oluşturur
+func (cli *CommandLine) createBlockChain(address, nodeID string) { // blockchain oluşturur
 	if !wallet.ValidateAddress(address) { // adresin dogrulugunu kontrol eder
 		log.Panic("\033[31mAddress is not Valid\033[0m")
 	}
-	chain := blockchain.InitBlockChain(address) // adresin blok zincirini oluşturur
-	defer chain.Database.Close()                // blok zincirini kapat
+	chain := blockchain.InitBlockChain(address, nodeID) // adresin blok zincirini oluşturur
+	defer chain.Database.Close()                        // blok zincirini kapat
 
 	UTXOSet := blockchain.UTXOSet{chain} // adresin UTXO setini oluşturur
 	UTXOSet.Reindex()                    // adresin UTXO setini yeniden oluşturur
@@ -93,13 +108,13 @@ func (cli *CommandLine) createBlockChain(address string) { // blockchain oluştu
 }
 
 // getBalance fonksiyonu, belirtilen adresin bakiyesini bulur
-func (cli *CommandLine) getBalance(address string) {
+func (cli *CommandLine) getBalance(address, nodeID string) {
 	if !wallet.ValidateAddress(address) { // adresin dogrulugunu kontrol eder
 		log.Panic("\033[31mAddress is not Valid\033[0m")
 	}
-	chain := blockchain.ContinueBlockChain(address) // adresin blok zincirini okur
-	UTXOSet := blockchain.UTXOSet{chain}            // adresin UTXO setini oluşturur
-	defer chain.Database.Close()                    // blok zincirini kapat
+	chain := blockchain.ContinueBlockChain(nodeID) // adresin blok zincirini okur
+	UTXOSet := blockchain.UTXOSet{chain}           // adresin UTXO setini oluşturur
+	defer chain.Database.Close()                   // blok zincirini kapat
 
 	balance := 0
 	pubKeyHash := wallet.Base58Decode([]byte(address)) // adresin base58 kodunu okur
@@ -114,43 +129,70 @@ func (cli *CommandLine) getBalance(address string) {
 }
 
 // send fonksiyonu, belirtilen miktarı belirtilen adresten diğer bir adrese gönderir.
-func (cli *CommandLine) send(from, to string, amount int) {
-	if !wallet.ValidateAddress(to) { // gonderilecek adresin dogrulugunu kontrol eder
-		log.Panic("\033[31mAddress is not Valid\033[0m") // dogrulama hatasını verir
+func (cli *CommandLine) send(from, to string, amount int, nodeID string, mineNow bool) {
+	if !wallet.ValidateAddress(to) {
+		log.Panic("Address is not Valid")
 	}
-	if !wallet.ValidateAddress(from) { // gonderen adresin dogrulugunu kontrol eder
-		log.Panic("\033[31mAddress is not Valid\033[0m")
+	if !wallet.ValidateAddress(from) {
+		log.Panic("Address is not Valid")
 	}
-	chain := blockchain.ContinueBlockChain(from) // gonderenin blok zincirini okur
-	UTXOSet := blockchain.UTXOSet{chain}         // gonderenin UTXO setini oluşturur
-	defer chain.Database.Close()                 // blok zincirini kapat
+	chain := blockchain.ContinueBlockChain(nodeID)
+	UTXOSet := blockchain.UTXOSet{chain}
+	defer chain.Database.Close()
 
-	tx := blockchain.NewTransaction(from, to, amount, &UTXOSet)  // yeni bir işlem oluşturur
-	cbTx := blockchain.CoinbaseTx(from, "")                      //madencının parasını verıcezdrom olan madencı burada
-	block := chain.AddBlock([]*blockchain.Transaction{cbTx, tx}) // blok zincirine ekler
-	UTXOSet.Update(block)                                        // UTXO setini yeniden oluşturur
-	fmt.Println("\u001B[32mSuccess!\u001B[0m")                   // basarılı mesajı verir
+	wallets, err := wallet.CreateWallets(nodeID)
+	if err != nil {
+		log.Panic(err)
+	}
+	wallet := wallets.GetWallet(from)
+
+	tx := blockchain.NewTransaction(&wallet, to, amount, &UTXOSet)
+	if mineNow {
+		cbTx := blockchain.CoinbaseTx(from, "")
+		txs := []*blockchain.Transaction{cbTx, tx}
+		block := chain.MineBlock(txs)
+		UTXOSet.Update(block)
+	} else {
+		network.SendTx(network.KnownNodes[0], tx)
+		fmt.Println("send tx")
+	}
+
+	fmt.Println("Success!")
 }
 
 // listAddresses fonksiyonu, cüzdan adreslerini listeler.
-func (cli *CommandLine) listAddresses() {
-	wallets, _ := wallet.CreateWallets() // cüzdan dosyasını okur
-	addresses := wallets.GetAllAddress() // cüzdan adreslerini alır
+func (cli *CommandLine) listAddresses(nodeID string) {
+	wallets, _ := wallet.CreateWallets(nodeID) // cüzdan dosyasını okur
+	addresses := wallets.GetAllAddress()       // cüzdan adreslerini alır
 	for _, address := range addresses {
 		fmt.Printf("\033[36m	%s\u001B[0m\n", address)
 	}
 }
 
-// CreateWallet fonksiyonu, cüzdan oluşturur.
-func (cli *CommandLine) CreateWallet() {
-	wallets, _ := wallet.CreateWallets() // cüzdan dosyasını okur
-	address := wallets.AddWallet()       // cüzdan adresini oluşturur
-	wallets.SaveFile()                   // dosyayı kaydeder
+// createWallet fonksiyonu, cüzdan oluşturur.
+func (cli *CommandLine) createWallet(nodeID string) {
+	wallets, _ := wallet.CreateWallets(nodeID) // cüzdan dosyasını okur
+	address := wallets.AddWallet()             // cüzdan adresini oluşturur
+	wallets.SaveFile(nodeID)                   // dosyayı kaydeder
 	fmt.Printf("\u001B[32mNew address is : %s\u001B[0m\n", address)
 }
 
 func (cli *CommandLine) Run() { // komut satırı işlemleri
 	cli.validateArgs() // komut satırı argümanlarını dogrular
+
+	nodeID := os.Getenv("NODE_ID") // Set-Item -Path Env:NODE_ID -Value "3000" | set NODE_ID=3000
+	/*
+		Set-Item -Path Env:NODE_ID -Value "3000"
+		Set-Item -Path Env:NODE_ID -Value "4000"
+		Set-Item -Path Env:NODE_ID -Value "5000"
+
+		xcopy blocks_3000 blocks_5000
+
+	*/
+	if nodeID == "" {
+		fmt.Printf("NODE_ID env ayarlanmadı!")
+		runtime.Goexit()
+	}
 
 	getBalanceCmd := flag.NewFlagSet("getbalance", flag.ExitOnError)             // getbalance komutunu tanımla
 	createBlockchainCmd := flag.NewFlagSet("createblockchain", flag.ExitOnError) // createblockchain komutunu tanımla
@@ -159,12 +201,16 @@ func (cli *CommandLine) Run() { // komut satırı işlemleri
 	createWalletCmd := flag.NewFlagSet("createwallet", flag.ExitOnError)
 	listAddressesCmd := flag.NewFlagSet("listaddresses", flag.ExitOnError)
 	reindexUTXOCmd := flag.NewFlagSet("reindexutxo", flag.ExitOnError)
+	startNodeCmd := flag.NewFlagSet("startnode", flag.ExitOnError)
 
 	getBalanceAddress := getBalanceCmd.String("address", "", "\033[36mBakiye almanın adresi\033[0m")
 	createBlockchainAddress := createBlockchainCmd.String("address", "", "\033[36mGenesis blok ödülünün gönderileceği adres\033[0m")
 	sendFrom := sendCmd.String("from", "", "\033[36mKaynak cüzdan adresi\033[0m")
 	sendTo := sendCmd.String("to", "", "\033[36mHedef cüzdan adresi\033[0m")
 	sendAmount := sendCmd.Int("amount", 0, "\033[36mGönderilecek tutar\033[0m")
+	sendMine := sendCmd.Bool("mine", false, "Aynı düğümde hemen madencilik yapın")
+	startNodeMiner := startNodeCmd.String("miner", "", "Madencilik modunu etkinleştirin ve ödülü ADDRESS adresine gönderin")
+
 	// send komutundaki tutarı tanımla
 
 	switch os.Args[1] { // komut satırı argümanın hangi komut oldugunu bulur
@@ -203,49 +249,61 @@ func (cli *CommandLine) Run() { // komut satırı işlemleri
 		if err != nil {
 			log.Panic(err)
 		}
+	case "startnode":
+		err := startNodeCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
 	default:
 		cli.printUsage() // komut satırı argümanlarını yazdır
 		runtime.Goexit() // programın çalışmasını sonlandır
 	}
 
-	if getBalanceCmd.Parsed() { // getbalance komutu parse edilirse
-		if *getBalanceAddress == "" { // getbalance komutundaki adres bilgisi bos ise
-			getBalanceCmd.Usage() // getbalance komutunu yazdır
+	if getBalanceCmd.Parsed() {
+		if *getBalanceAddress == "" {
+			getBalanceCmd.Usage()
 			runtime.Goexit()
 		}
-		cli.getBalance(*getBalanceAddress) // getbalance komutunu çalıştır
+		cli.getBalance(*getBalanceAddress, nodeID)
 	}
 
-	if createBlockchainCmd.Parsed() { // createblockchain komutu parse edilirse
-		if *createBlockchainAddress == "" { // createblockchain komutundaki adres bilgisi bos ise
-			createBlockchainCmd.Usage() // createblockchain komutunu yazdır
+	if createBlockchainCmd.Parsed() {
+		if *createBlockchainAddress == "" {
+			createBlockchainCmd.Usage()
 			runtime.Goexit()
 		}
-		cli.createBlockChain(*createBlockchainAddress) // createblockchain komutunu çalıştır
+		cli.createBlockChain(*createBlockchainAddress, nodeID)
 	}
 
-	if printChainCmd.Parsed() { // printchain komutu parse edilirse
-		cli.printChain() // printchain komutunu çalıştır
-	}
-
-	if sendCmd.Parsed() { // send komutu parse edilirse
-		if *sendFrom == "" || *sendTo == "" || *sendAmount <= 0 { // send komutundaki kaynak, hedef ve tutar bilgileri bos ise
-			sendCmd.Usage() // send komutunu yazdır
-			runtime.Goexit()
-		}
-
-		cli.send(*sendFrom, *sendTo, *sendAmount) // send komutunu çalıştır
+	if printChainCmd.Parsed() {
+		cli.printChain(nodeID)
 	}
 
 	if createWalletCmd.Parsed() {
-		cli.CreateWallet()
+		cli.createWallet(nodeID)
 	}
-
 	if listAddressesCmd.Parsed() {
-		cli.listAddresses()
+		cli.listAddresses(nodeID)
+	}
+	if reindexUTXOCmd.Parsed() {
+		cli.reindexUTXO(nodeID)
 	}
 
-	if reindexUTXOCmd.Parsed() {
-		cli.reindexUTXO()
+	if sendCmd.Parsed() {
+		if *sendFrom == "" || *sendTo == "" || *sendAmount <= 0 {
+			sendCmd.Usage()
+			runtime.Goexit()
+		}
+
+		cli.send(*sendFrom, *sendTo, *sendAmount, nodeID, *sendMine)
+	}
+
+	if startNodeCmd.Parsed() {
+		nodeID := os.Getenv("NODE_ID")
+		if nodeID == "" {
+			startNodeCmd.Usage()
+			runtime.Goexit()
+		}
+		cli.StartNode(nodeID, *startNodeMiner)
 	}
 }

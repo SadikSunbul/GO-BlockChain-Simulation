@@ -9,13 +9,14 @@ import (
 	"github.com/dgraph-io/badger"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 const (
-	dbPath      = "./tmp/blocks"
-	dbFile      = "./tmp/blocks/MANIFEST"
-	genesisData = "First Transection from genesis"
+	dbPath      = "./tmp/blocks_%s"
+	genesisData = "First Transaction from Genesis"
 )
 
 type BlockChain struct { //Block zıncırını tutar
@@ -23,13 +24,13 @@ type BlockChain struct { //Block zıncırını tutar
 	Database *badger.DB
 }
 
-type BlockChainIterator struct { //Blockchain üzerinde gezmek ıcın kullanılır
-	CurrentHash []byte
-	Database    *badger.DB
-}
+//type BlockChainIterator struct { //Blockchain üzerinde gezmek ıcın kullanılır
+//	CurrentHash []byte
+//	Database    *badger.DB
+//}
 
-func DBexists() bool { //block zıncırın var olup olmadıgını kontrolunu yapıcak
-	if _, err := os.Stat(dbFile); os.IsNotExist(err) {
+func DBexists(path string) bool { //block zıncırın var olup olmadıgını kontrolunu yapıcak
+	if _, err := os.Stat(path + "/MANIFEST"); os.IsNotExist(err) {
 		return false
 	}
 	return true
@@ -41,20 +42,21 @@ Bu fonksiyon, mevcut bir blockchain'in varlığını kontrol eder, varsa veritab
 ve bu bilgileri kullanarak bir BlockChain yapısı oluşturur. Daha sonra bu yapının işaretçisini döndürür. Bu işlem,
 mevcut bir blockchain'e devam etmek veya yeni işlemler eklemek için kullanılır.
 */
-func ContinueBlockChain(address string) *BlockChain {
-	if DBexists() == false { //veritabaının olup olmadıgını kontrolunu yapar
+func ContinueBlockChain(nodeId string) *BlockChain {
+	path := fmt.Sprintf(dbPath, nodeId)
+	if DBexists(path) == false { //veritabaının olup olmadıgını kontrolunu yapar
 		fmt.Println("Mevcut bir blockchain bulunamadı, bir tane oluşturun!")
 		runtime.Goexit()
 	}
 
 	var lastHash []byte
 
-	opts := badger.DefaultOptions(dbPath)
-	opts.Dir = dbPath
-	opts.ValueDir = dbPath
+	opts := badger.DefaultOptions(path)
+	opts.Dir = path
+	opts.ValueDir = path
 	opts.Logger = nil
 
-	db, err := badger.Open(opts)
+	db, err := openDB(path, opts)
 	Handle(err)
 
 	err = db.Update(func(txn *badger.Txn) error {
@@ -72,22 +74,21 @@ func ContinueBlockChain(address string) *BlockChain {
 }
 
 // InitBlockChain BlockChainin başlatılmasını sağlar
-func InitBlockChain(address string) *BlockChain {
+func InitBlockChain(address, nodeId string) *BlockChain {
+	path := fmt.Sprintf(dbPath, nodeId)
 
-	var lastHash []byte
-
-	if DBexists() { //verı tabanını var olup olmadıgının kontrolu
+	if DBexists(path) { //verı tabanını var olup olmadıgının kontrolu
 		fmt.Printf("Blok zinciri zaten mevcut\n")
 		runtime.Goexit()
 	}
-
+	var lastHash []byte
 	//Database baglantısı olusturulur
-	opts := badger.DefaultOptions(dbPath)
-	opts.Dir = dbPath
-	opts.ValueDir = dbPath
+	opts := badger.DefaultOptions(path)
+	opts.Dir = path
+	opts.ValueDir = path
 	opts.Logger = nil
 
-	db, err := badger.Open(opts)
+	db, err := openDB(path, opts)
 	Handle(err)
 
 	//Databasede bir güncelleme ekleme değişiklik işlemi yapılıcaktır
@@ -110,32 +111,72 @@ func InitBlockChain(address string) *BlockChain {
 }
 
 // AddBlock  block zincirine  blok elememızı saglar
-func (chain *BlockChain) AddBlock(transactions []*Transaction) *Block {
-	var lastHash []byte //lastHash degerini olusturduk
+func (chain *BlockChain) AddBlock(block *Block) {
+	err := chain.Database.Update(func(txn *badger.Txn) error {
+		if _, err := txn.Get(block.Hash); err == nil {
+			return nil
+		}
 
-	for _, tx := range transactions { //gelen transactionları döndürerek
-		if chain.VerifyTransaction(tx) != true { //Gelen transactionları kontrol edip
-			log.Panic("Invalid Transaction") //Hatalı bir transaction varsa hata mesajını verir
+		blockData := block.Serialize()
+		err := txn.Set(block.Hash, blockData)
+		Handle(err)
+
+		item, err := txn.Get([]byte("lh"))
+		Handle(err)
+		lastHash, _ := item.ValueCopy(nil)
+
+		item, err = txn.Get(lastHash)
+		Handle(err)
+		lastBlockData, _ := item.ValueCopy(nil)
+
+		lastBlock := Deserialize(lastBlockData)
+
+		if block.Height > lastBlock.Height {
+			err = txn.Set([]byte("lh"), block.Hash)
+			Handle(err)
+			chain.LastHash = block.Hash
+		}
+
+		return nil
+	})
+	Handle(err)
+}
+
+func (chain *BlockChain) MineBlock(transactions []*Transaction) *Block {
+	var lastHash []byte
+	var lastHeight int
+
+	for _, tx := range transactions {
+		if chain.VerifyTransaction(tx) != true {
+			log.Panic("Invalid Transaction")
 		}
 	}
 
-	err := chain.Database.View(func(txn *badger.Txn) error { //veritabanından son hash degerini alıyoruz
-		item, err := txn.Get([]byte("lh")) //son hash degerini alıyoruz
+	err := chain.Database.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte("lh"))
 		Handle(err)
-		lastHash, err = item.ValueCopy(nil) //son hash degerini alıyoruz
+		lastHash, err = item.ValueCopy(nil)
+
+		item, err = txn.Get(lastHash)
+		Handle(err)
+		lastBlockData, _ := item.ValueCopy(nil)
+
+		lastBlock := Deserialize(lastBlockData)
+
+		lastHeight = lastBlock.Height
 
 		return err
 	})
 	Handle(err)
 
-	newBlock := CreateBlock(transactions, lastHash) //yeni blok olusturuyoruz
+	newBlock := CreateBlock(transactions, lastHash, lastHeight+1)
 
-	err = chain.Database.Update(func(txn *badger.Txn) error { //veritabanına yeni blok ekliyoruz
-		err := txn.Set(newBlock.Hash, newBlock.Serialize()) //yeni blok veritabanına kaydediliyor
+	err = chain.Database.Update(func(txn *badger.Txn) error {
+		err := txn.Set(newBlock.Hash, newBlock.Serialize())
 		Handle(err)
-		err = txn.Set([]byte("lh"), newBlock.Hash) //son hash degeri veritabanına kaydediliyor
+		err = txn.Set([]byte("lh"), newBlock.Hash)
 
-		chain.LastHash = newBlock.Hash //son hash degeri veritabanına kaydedildi
+		chain.LastHash = newBlock.Hash
 
 		return err
 	})
@@ -144,80 +185,64 @@ func (chain *BlockChain) AddBlock(transactions []*Transaction) *Block {
 	return newBlock
 }
 
-// Iterator :BlockChaın de okuma işlemi yapmak için başlangıç değerlerini atayan kod
-func (chain *BlockChain) Iterator() *BlockChainIterator {
-	iter := &BlockChainIterator{chain.LastHash, chain.Database}
-	return iter
-}
+func (chain *BlockChain) GetBestHeight() int {
+	var lastBlock Block
 
-// Next BlockChaınde gerıye dogru ılerlemeyı saglar ve suankı blogun verılerını gerıye doner
-func (iter *BlockChainIterator) Next() *Block {
-	var block *Block
-	err := iter.Database.View(func(txn *badger.Txn) error { //database den okum yapıcak
-		item, err := txn.Get(iter.CurrentHash) //son blogun hası ıle ara son blogun verılerıne erıs
+	err := chain.Database.View(func(txn *badger.Txn) error {
+		item, err := txn.Get([]byte("lh"))
 		Handle(err)
+		lastHash, _ := item.ValueCopy(nil)
 
-		encoderBlock, err := item.ValueCopy(nil) //son blogun verıelrını al
-		block = Deserilize(encoderBlock)         //blog verılerını deserılıze et
-		return err
+		item, err = txn.Get(lastHash)
+		Handle(err)
+		lastBlockData, _ := item.ValueCopy(nil)
+
+		lastBlock = *Deserialize(lastBlockData)
+
+		return nil
 	})
 	Handle(err)
-	iter.CurrentHash = block.PrevHash //yenı blog suankının bır oncekı demıs olduk
-	return block                      //gerıye su ankı blogu gerı doner
+
+	return lastBlock.Height
 }
 
-//
-//// FindUnspentTransactions : Bu fonksiyon, bir blockchain üzerinde belirli bir adrese gönderilmiş ancak henüz harcanmamış (unspent) işlemleri bulmak için kullanılır.
-//func (chain *BlockChain) FindUnspentTransactions(pubKeyHash []byte) []Transaction {
-//	var unspentTxs []Transaction        // Harcanmamış işlemleri tutacak slice
-//	spentTXOs := make(map[string][]int) // Harcanmış işlemlerin çıktılarını izlemek için kullanılacak map
-//
-//	iter := chain.Iterator() // Blok zinciri iteratorunu olustur
-//
-//	for {
-//		block := iter.Next() // Sıradaki bloğu al
-//
-//		for _, tx := range block.Transactions { // Bloktaki her işlem için döngü
-//			txID := hex.EncodeToString(tx.ID) // İşlem ID'sini hex formatına dönüştürerek al
-//
-//		Outputs:
-//			for outIdx, out := range tx.Outputs { // İşlemin çıktıları üzerinde döngü
-//				// Eğer bu çıktı daha önce harcanmışsa atla
-//				if spentTXOs[txID] != nil {
-//					for _, spentOut := range spentTXOs[txID] {
-//						if spentOut == outIdx {
-//							continue Outputs
-//						}
-//					}
-//				}
-//
-//				// Eğer çıktı, belirtilen adrese gönderilmişse
-//				if out.IsLockedWithKey(pubKeyHash) { //aranan adres tarafından acılıp acılmayacagı kontrol edılır
-//					unspentTxs = append(unspentTxs, *tx) // Harcanmamış işlemler listesine ekle
-//				}
-//			}
-//
-//			// Coinbase işlemi değilse (yani normal bir transfer işlemi)
-//			if tx.IsCoinbase() == false {
-//				// İşlemin girdileri üzerinde döngü
-//				for _, in := range tx.Inputs {
-//					// Eğer bu girişin kilidi (unlock) belirtilen adrese açılabiliyorsa
-//					if in.UsesKey(pubKeyHash) {
-//						inTxID := hex.EncodeToString(in.ID)                   // Girişin işlem ID'sini alarak hex formatına dönüştür
-//						spentTXOs[inTxID] = append(spentTXOs[inTxID], in.Out) // Harcanmış işlemler listesine ekle
-//					}
-//				}
-//			}
-//		}
-//
-//		// Eğer bloğun önceki hash değeri yoksa (genesis block durumu), iterasyonu sonlandır
-//		if len(block.PrevHash) == 0 {
-//			break
-//		}
-//	}
-//
-//	return unspentTxs // Harcanmamış işlemleri içeren slice'i döndür
-//}
+func (chain *BlockChain) GetBlock(blockHash []byte) (Block, error) {
+	var block Block
+
+	err := chain.Database.View(func(txn *badger.Txn) error {
+		if item, err := txn.Get(blockHash); err != nil {
+			return errors.New("Block is not found")
+		} else {
+			blockData, _ := item.ValueCopy(nil)
+
+			block = *Deserialize(blockData)
+		}
+		return nil
+	})
+	if err != nil {
+		return block, err
+	}
+
+	return block, nil
+}
+
+func (chain *BlockChain) GetBlockHashes() [][]byte {
+	var blocks [][]byte
+
+	iter := chain.Iterator()
+
+	for {
+		block := iter.Next()
+
+		blocks = append(blocks, block.Hash)
+
+		if len(block.PrevHash) == 0 {
+			break
+		}
+	}
+
+	return blocks
+}
 
 // FindUTXO fonksiyonu, belirtilen bir adrese gönderilmiş ve henüz harcanmamış (UTXO) çıktıları bulmak için kullanılır.
 func (chain *BlockChain) FindUTXO() map[string]TxOutputs {
@@ -315,4 +340,30 @@ func (bc *BlockChain) VerifyTransaction(tx *Transaction) bool {
 	}
 
 	return tx.Verify(prevTXs) // Transaction yapısının geçerliliğini doğrular
+}
+
+func retry(dir string, originalOpts badger.Options) (*badger.DB, error) {
+	lockPath := filepath.Join(dir, "LOCK")
+	if err := os.Remove(lockPath); err != nil {
+		return nil, fmt.Errorf(`removing "LOCK": %s`, err)
+	}
+	retryOpts := originalOpts
+	retryOpts.Truncate = true
+	db, err := badger.Open(retryOpts)
+	return db, err
+}
+
+func openDB(dir string, opts badger.Options) (*badger.DB, error) {
+	if db, err := badger.Open(opts); err != nil {
+		if strings.Contains(err.Error(), "LOCK") {
+			if db, err := retry(dir, opts); err == nil {
+				log.Println("database unlocked, value log truncated")
+				return db, nil
+			}
+			log.Println("could not unlock database:", err)
+		}
+		return nil, err
+	} else {
+		return db, nil
+	}
 }

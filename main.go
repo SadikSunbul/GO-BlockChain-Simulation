@@ -2,17 +2,12 @@ package main
 
 import (
 	"github.com/SadikSunbul/GO-BlockChain-Simulation/cli"
-	"github.com/SadikSunbul/GO-BlockChain-Simulation/wallet"
 	"os"
 )
 
 func main() {
-	defer os.Exit(0)         // programı sonlandırır
-	cli := cli.CommandLine{} // Komut satırı işlemleri için kullanılan yapıyı temsil eder.
-	cli.Run()                // Komut satırı işlemlerini başlatır
+	defer os.Exit(0)
 
-	w := wallet.MakeWallet()
-	w.Address()
-
-	//fmt.Print(wallet.ValidateAddress("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"))
+	cmd := cli.CommandLine{}
+	cmd.Run()
 }

@@ -9,18 +9,18 @@ import (
 	"os"
 )
 
-const walletFile = "./tmp/wallets.data" //Badgerı kullanmıycaz buradakı cuzdsanı saklamak ıcın
+const walletFile = "./tmp/wallets_%s.data" //Badgerı kullanmıycaz buradakı cuzdsanı saklamak ıcın
 
 type Wallets struct {
 	Wallets map[string]*Wallet
 }
 
 // CreateWallets fonksiyonu, bir Wallets nesnesi olusturur
-func CreateWallets() (*Wallets, error) {
+func CreateWallets(nodeId string) (*Wallets, error) {
 	wallets := Wallets{}                       // wallet nesnesi olusturulur
 	wallets.Wallets = make(map[string]*Wallet) // wallet nesnesi olusturulur
 
-	err := wallets.LoadFile() // wallets dosyası okunur
+	err := wallets.LoadFile(nodeId) // wallets dosyası okunur
 
 	return &wallets, err // wallets nesnesi döndürülür
 }
@@ -48,7 +48,8 @@ func (ws *Wallets) GetAllAddress() []string {
 }
 
 // LoadFile fonksiyonu, dosya okunur
-func (ws *Wallets) LoadFile() error {
+func (ws *Wallets) LoadFile(nodeId string) error {
+	walletFile := fmt.Sprintf(walletFile, nodeId)
 	if _, err := os.Stat(walletFile); os.IsNotExist(err) { // dosya yoksa
 		return err // hata döndürür
 	}
@@ -73,8 +74,9 @@ func (ws *Wallets) LoadFile() error {
 }
 
 // SaveFile fonksiyonu, dosya kaydedilir
-func (ws *Wallets) SaveFile() {
+func (ws *Wallets) SaveFile(nodeId string) {
 	var content bytes.Buffer
+	walletFile := fmt.Sprintf(walletFile, nodeId)
 
 	gob.Register(elliptic.P256())       // elliptic nesnesi olusturulur
 	encoder := gob.NewEncoder(&content) // encoder nesnesi oluşturulur

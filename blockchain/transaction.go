@@ -42,48 +42,48 @@ func CoinbaseTx(to, data string) *Transaction {
 }
 
 // NewTransaction, belirtilen bir adresten başka bir adrese belirtilen miktar token transferi yapacak yeni bir işlem oluşturur.
-func NewTransaction(from, to string, amount int, UTXO *UTXOSet) *Transaction {
-	var inputs []TxInput   // Bu işlemdeki girdiler (inputs)
-	var outputs []TxOutput // Bu işlemdeki çıktılar (outputs)
+func NewTransaction(w *wallet.Wallet, to string, amount int, UTXO *UTXOSet) *Transaction {
+	var inputs []TxInput
+	var outputs []TxOutput
 
-	wallets, err := wallet.CreateWallets() // Cüzdanları oluşturan fonksiyon, cüzdan dosyasını okur
-	Handle(err)                            // Hata durumunda işlemi ele alır
-
-	w := wallets.GetWallet(from)                    // Gönderenin cüzdanını belirtilen adresten alır
-	pubKeyHash := wallet.PublicKeyHash(w.PublicKey) // Cüzdanın public key hash değerini hesaplar
-
-	// Belirtilen miktarda token transferi için harcanabilir çıktıları bulur
+	pubKeyHash := wallet.PublicKeyHash(w.PublicKey)
 	acc, validOutputs := UTXO.FindSpendableOutputs(pubKeyHash, amount)
 
-	if acc < amount { // Hesaptaki bakiye belirtilen miktarı karşılayamıyorsa
-		log.Panic("Error: not enough funds") // Hata mesajı verir ve işlemi sonlandırır
+	if acc < amount {
+		log.Panic("Error: not enough funds")
 	}
 
-	// Harcanabilir çıktıları işleyerek girdi (input) yapısını oluşturur
 	for txid, outs := range validOutputs {
-		txID, err := hex.DecodeString(txid) // Hexadecimal formatındaki txid'yi byte dizisine dönüştürür
-		Handle(err)                         // Hata durumunda işlemi ele alır
+		txID, err := hex.DecodeString(txid)
+		Handle(err)
 
 		for _, out := range outs {
-			input := TxInput{txID, out, nil, w.PublicKey} // Girdi (input) yapısını oluşturur
+			input := TxInput{txID, out, nil, w.PublicKey}
 			inputs = append(inputs, input)
 		}
 	}
 
-	// Belirtilen miktarda çıktı (output) oluşturur ve çıktı listesine ekler
+	from := fmt.Sprintf("%s", w.Address())
+
 	outputs = append(outputs, *NewTXOutput(amount, to))
 
 	if acc > amount {
-		// Gönderenin kalan bakiyesi için ek bir çıktı oluşturur ve çıktı listesine ekler
 		outputs = append(outputs, *NewTXOutput(acc-amount, from))
 	}
 
-	// İşlem yapısını oluşturur
 	tx := Transaction{nil, inputs, outputs}
-	tx.ID = tx.Hash()                                  // İşlemin hash değerini hesaplar
-	UTXO.Blockchain.SignTransaction(&tx, w.PrivateKey) // İşlemi imzalar
+	tx.ID = tx.Hash()
+	UTXO.Blockchain.SignTransaction(&tx, w.PrivateKey)
 
-	return &tx // Oluşturulan işlem yapısını döndürür
+	return &tx
+}
+func DeserializeTransaction(data []byte) Transaction {
+	var transaction Transaction
+
+	decoder := gob.NewDecoder(bytes.NewReader(data))
+	err := decoder.Decode(&transaction)
+	Handle(err)
+	return transaction
 }
 
 /*

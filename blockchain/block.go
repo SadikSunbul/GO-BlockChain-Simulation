@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"encoding/gob"
 	"log"
+	"time"
 )
 
 type Block struct {
+	Timestamp    int64
 	Hash         []byte
 	Transactions []*Transaction //burada data vardı sımdı datalar yerını transectıonlara aldı
 	PrevHash     []byte
 	Nonce        int
+	Height       int
 }
 
 // HashTransactions fonksiyonu, bloğun islemlerini hash eder
@@ -26,8 +29,8 @@ func (b *Block) HashTransactions() []byte {
 }
 
 // CreateBlock fonksiyonu, yeni bir bloğu olusturur
-func CreateBlock(tsx []*Transaction, prevHash []byte) *Block {
-	block := &Block{[]byte{}, tsx, prevHash, 0} //[]byte(data) kısmı strıng ıfadeyi byte dizisine donduruyor
+func CreateBlock(tsx []*Transaction, prevHash []byte, height int) *Block {
+	block := &Block{time.Now().Unix(), []byte{}, tsx, prevHash, 0, height} //[]byte(data) kısmı strıng ıfadeyi byte dizisine donduruyor
 
 	pow := NewProof(block)   //yeni bir iş kanıtı olusturuyoruz
 	nonce, hash := pow.Run() //bu işkanıtınını çalıştırıyoruz blogunhasını ve nance degerını eklıyoruz
@@ -38,7 +41,7 @@ func CreateBlock(tsx []*Transaction, prevHash []byte) *Block {
 
 // Genesis fonksiyonu, ilk bloğu olusturur
 func Genesis(coinbase *Transaction) *Block {
-	return CreateBlock([]*Transaction{coinbase}, []byte{})
+	return CreateBlock([]*Transaction{coinbase}, []byte{}, 0)
 }
 
 //Badger DB sadece byte kabul ettıgı ıcın serılestırme ve deserilize ıslemlerı kolyalastıralım
@@ -62,8 +65,8 @@ func (b *Block) Serialize() []byte {
 
 }
 
-// Deserilize fonksiyonu, verilen byte diliminden (data) bir Block struct'ı oluşturur ve döndürür.
-func Deserilize(data []byte) *Block {
+// Deserialize fonksiyonu, verilen byte diliminden (data) bir Block struct'ı oluşturur ve döndürür.
+func Deserialize(data []byte) *Block {
 	var block Block // Block türünde bir değişken oluşturuluyor
 
 	// bytes.NewReader(data) ile data byte dilimi üzerinde bir okuyucu (reader) oluşturuluyor
