@@ -357,10 +357,10 @@ func openDB(dir string, opts badger.Options) (*badger.DB, error) {
 	if db, err := badger.Open(opts); err != nil {
 		if strings.Contains(err.Error(), "LOCK") {
 			if db, err := retry(dir, opts); err == nil {
-				log.Println("database unlocked, value log truncated")
+				log.Println("veritabanının kilidi açıldı, değer günlüğü kesildi")
 				return db, nil
 			}
-			log.Println("could not unlock database:", err)
+			log.Println("veritabanının kilidi açılamadı:", err)
 		}
 		return nil, err
 	} else {

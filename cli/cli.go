@@ -117,9 +117,9 @@ func (cli *CommandLine) getBalance(address, nodeID string) {
 	defer chain.Database.Close()                   // blok zincirini kapat
 
 	balance := 0
-	pubKeyHash := wallet.Base58Decode([]byte(address)) // adresin base58 kodunu okur
-	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]     // adresin ilk 4 karakterini kaldırır
-	UTXOs := UTXOSet.FindUTXO(pubKeyHash)              // adresin bakiyesini bulur
+	pubKeyHash := wallet.Base58Decode([]byte(address))   // adresin base58 kodunu okur
+	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]       // adresin ilk 4 karakterini kaldırır
+	UTXOs := UTXOSet.FindUnspentTransactions(pubKeyHash) // adresin bakiyesini bulur
 
 	for _, out := range UTXOs { // bakiye döngüsü
 		balance += out.Value // bakiyeyi arttırır
@@ -182,11 +182,13 @@ func (cli *CommandLine) Run() { // komut satırı işlemleri
 
 	nodeID := os.Getenv("NODE_ID") // Set-Item -Path Env:NODE_ID -Value "3000" | set NODE_ID=3000
 	/*
-		Set-Item -Path Env:NODE_ID -Value "3000"
-		Set-Item -Path Env:NODE_ID -Value "4000"
-		Set-Item -Path Env:NODE_ID -Value "5000"
+			Set-Item -Path Env:NODE_ID -Value "3000"
+			Set-Item -Path Env:NODE_ID -Value "4000"
+			Set-Item -Path Env:NODE_ID -Value "5000"
 
-		xcopy blocks_3000 blocks_5000
+			xcopy blocks_3000 blocks_5000
+		    xcopy blocks_3000 blocks_4000
+		    xcopy blocks_3000 blocks_gen
 
 	*/
 	if nodeID == "" {

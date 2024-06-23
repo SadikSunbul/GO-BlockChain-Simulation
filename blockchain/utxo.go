@@ -287,3 +287,33 @@ func (u *UTXOSet) DeleteByPrefix(prefix []byte) {
 		return nil
 	})
 }
+
+func (u UTXOSet) FindUnspentTransactions(pubKeyHash []byte) []TxOutput {
+	var UTXOs []TxOutput
+
+	db := u.Blockchain.Database
+
+	err := db.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		for it.Seek(utxoPrefix); it.ValidForPrefix(utxoPrefix); it.Next() {
+			item := it.Item()
+			v, err := item.ValueCopy(nil)
+			Handle(err)
+			outs := DeserializeOutputs(v)
+			for _, out := range outs.Outputs {
+				if out.IsLockedWithKey(pubKeyHash) {
+					UTXOs = append(UTXOs, out)
+				}
+			}
+
+		}
+		return nil
+	})
+	Handle(err)
+
+	return UTXOs
+}
