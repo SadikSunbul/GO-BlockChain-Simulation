@@ -204,9 +204,12 @@ func HandleBlock(request []byte, chain *blockchain.BlockChain) {
 	buff.Write(request[commandLength:])
 	dec := gob.NewDecoder(&buff)
 	err := dec.Decode(&payload)
+	fmt.Println("Handle Block hatası oncesi")
 	if err != nil {
+		fmt.Println("Handle Block hatası içi")
 		log.Panic(err)
 	}
+	fmt.Println("Handle Block hatası sonrasıs")
 
 	blockData := payload.Block
 	block := blockchain.Deserialize(blockData)
