@@ -9,11 +9,16 @@ import (
 	"encoding/gob"
 	"encoding/hex"
 	"fmt"
-	"github.com/SadikSunbul/GO-BlockChain-Simulation/wallet"
 	"log"
 	"math/big"
 	"strings"
+
+	"github.com/SadikSunbul/GO-BlockChain-Simulation/wallet"
 )
+
+func init() {
+	gob.Register(elliptic.P256())
+}
 
 type Transaction struct {
 	ID      []byte     //transectıon hası

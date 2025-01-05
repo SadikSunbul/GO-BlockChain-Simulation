@@ -9,10 +9,14 @@ import (
 	"os"
 )
 
-const walletFile = "./tmp/wallets_%s.data" //Badgerı kullanmıycaz buradakı cuzdsanı saklamak ıcın
+const walletFile = "./tmp/wallets_%s.data"
 
 type Wallets struct {
 	Wallets map[string]*Wallet
+}
+
+func init() {
+	gob.Register(elliptic.P256())
 }
 
 // CreateWallets fonksiyonu, bir Wallets nesnesi olusturur
@@ -47,44 +51,52 @@ func (ws *Wallets) GetAllAddress() []string {
 	return addresses // adreslerin listesi döndürülür
 }
 
-// LoadFile fonksiyonu, dosya okunur
+// LoadFile fonksiyonu, cüzdanları dosyadan yükler
 func (ws *Wallets) LoadFile(nodeId string) error {
 	walletFile := fmt.Sprintf(walletFile, nodeId)
-	if _, err := os.Stat(walletFile); os.IsNotExist(err) { // dosya yoksa
-		return err // hata döndürür
+	if _, err := os.Stat(walletFile); os.IsNotExist(err) {
+		return err
 	}
 
-	var wallets Wallets // wallet nesnesi olusturulur
+	var walletsData map[string][]byte
 
-	fileContent, err := os.ReadFile(walletFile) // dosya okunur
-
+	fileContent, err := os.ReadFile(walletFile)
 	if err != nil {
-		log.Panic(err)
-	} // hata döndürür
-	gob.Register(elliptic.P256())                           // elliptic nesnesi olusturulur
-	decoder := gob.NewDecoder(bytes.NewReader(fileContent)) // decoder nesnesi olusturulur
-	err = decoder.Decode(&wallets)                          // decoder ile dosya okunur
-
-	if err != nil {
-		log.Panic(err) // hata döndürür
+		return err
 	}
-	ws.Wallets = wallets.Wallets // wallet nesnesi olusturulur
 
-	return nil // hata yok
+	decoder := gob.NewDecoder(bytes.NewReader(fileContent))
+	err = decoder.Decode(&walletsData)
+	if err != nil {
+		return err
+	}
+
+	wallets := make(map[string]*Wallet)
+	for addr, data := range walletsData {
+		wallets[addr] = DeserializeWallet(data)
+	}
+
+	ws.Wallets = wallets
+	return nil
 }
 
-// SaveFile fonksiyonu, dosya kaydedilir
+// SaveFile fonksiyonu, cüzdanları dosyaya kaydeder
 func (ws *Wallets) SaveFile(nodeId string) {
 	var content bytes.Buffer
 	walletFile := fmt.Sprintf(walletFile, nodeId)
 
-	gob.Register(elliptic.P256())       // elliptic nesnesi olusturulur
-	encoder := gob.NewEncoder(&content) // encoder nesnesi oluşturulur
-	err := encoder.Encode(ws)           // encoder ile dosya kaydedilir
+	var walletsData = make(map[string][]byte)
+	for addr, wallet := range ws.Wallets {
+		walletsData[addr] = wallet.Serialize()
+	}
+
+	encoder := gob.NewEncoder(&content)
+	err := encoder.Encode(walletsData)
 	if err != nil {
 		log.Panic(err)
 	}
-	err = os.WriteFile(walletFile, content.Bytes(), 0644) // dosya kaydedilir
+
+	err = os.WriteFile(walletFile, content.Bytes(), 0644)
 	if err != nil {
 		log.Panic(err)
 	}
