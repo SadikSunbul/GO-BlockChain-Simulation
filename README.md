@@ -34,9 +34,8 @@ Clone the project to your local machine:
 
 To create a new blockchain:
 
-    
 + ```bash 
-   $ go run main.go createblockchain -address <ADDRESS>
+   $ go run main.go createblockchain -address <ADDRESS> 
 ***
 
 ### Checking Balance
@@ -52,7 +51,7 @@ To check the balance for a specific address:
 To send a transaction on the blockchain:
 
 + ```bash
-   $ go run main.go send -from <FROM_ADDRESS> -to <TO_ADDRESS> -amount <AMOUNT>
+   $ go run main.go send -from <FROM_ADDRESS> -to <TO_ADDRESS> -amount <AMOUNT> -mine
 ***
 
 ### Viewing the Blockchain
@@ -60,7 +59,7 @@ To send a transaction on the blockchain:
 To print all blocks in the blockchain:
 
 + ```bash
-   $ go run main.go printchain
+   $ go run main.go printchain 
 ***
 
 ### Creating a New Wallet
@@ -76,7 +75,19 @@ To create a new wallet:
 Lists the public keys of the wallets you created on your device:
 
 + ```bash
-    $ go run main.go listaddresses
+   $ go run main.go listaddresses
+***
+
+### Reindex UTXO
+
++ ```bash
+   $ go run main.go reindexutxo
+***
+
+### Start Node
+
++ ```bash
+   $ go run main.go startnode -miner <ADDRESS>  # NODE_ID ortamında belirtilen kimliğe sahip bir düğüm başlatın. -miner madenciliği mümkün kılar
 ***
 
 ## Contributing
