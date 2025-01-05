@@ -2,11 +2,10 @@ package network
 
 import (
 	"bytes"
+	"crypto/elliptic"
 	"encoding/gob"
 	"encoding/hex"
 	"fmt"
-	"github.com/SadikSunbul/GO-BlockChain-Simulation/blockchain"
-	"github.com/vrecan/death/v3"
 	"io"
 	"io/ioutil"
 	"log"
@@ -14,7 +13,14 @@ import (
 	"os"
 	"runtime"
 	"syscall"
+
+	"github.com/SadikSunbul/GO-BlockChain-Simulation/blockchain"
+	"github.com/vrecan/death/v3"
 )
+
+func init() {
+	gob.Register(elliptic.P256())
+}
 
 const (
 	protocol      = "tcp"

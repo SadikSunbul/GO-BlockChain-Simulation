@@ -6,8 +6,10 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
-	"golang.org/x/crypto/ripemd160"
 	"log"
+	"math/big"
+
+	"golang.org/x/crypto/ripemd160"
 )
 
 const (
@@ -18,6 +20,35 @@ const (
 type Wallet struct {
 	PrivateKey ecdsa.PrivateKey //eliptik eğrisi ile private key
 	PublicKey  []byte
+}
+
+// Serialize, cüzdanı serileştirmek için özel bir yöntem
+func (w *Wallet) Serialize() []byte {
+	var content bytes.Buffer
+
+	// Private key'in D, X ve Y değerlerini kaydet
+	content.Write(w.PrivateKey.D.Bytes())
+	content.Write(w.PrivateKey.PublicKey.X.Bytes())
+	content.Write(w.PrivateKey.PublicKey.Y.Bytes())
+	content.Write(w.PublicKey)
+
+	return content.Bytes()
+}
+
+// DeserializeWallet, serileştirilmiş veriyi Wallet yapısına dönüştürür
+func DeserializeWallet(data []byte) *Wallet {
+	privateKey := new(ecdsa.PrivateKey)
+	privateKey.Curve = elliptic.P256()
+
+	privateKey.D = new(big.Int).SetBytes(data[:32])
+	privateKey.PublicKey.X = new(big.Int).SetBytes(data[32:64])
+	privateKey.PublicKey.Y = new(big.Int).SetBytes(data[64:96])
+	publicKey := data[96:]
+
+	return &Wallet{
+		PrivateKey: *privateKey,
+		PublicKey:  publicKey,
+	}
 }
 
 // NewKeyPair fonksiyonu, bir private ve public key olusturur
