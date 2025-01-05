@@ -87,7 +87,7 @@ Lists the public keys of the wallets you created on your device:
 ### Start Node
 
 + ```bash
-   $ go run main.go startnode -miner <ADDRESS>  # NODE_ID ortamında belirtilen kimliğe sahip bir düğüm başlatın. -miner madenciliği mümkün kılar
+   $ go run main.go startnode -miner <ADDRESS>
 ***
 
 ## Contributing
